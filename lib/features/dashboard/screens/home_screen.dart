@@ -31,7 +31,7 @@ class HomeScreen extends ConsumerWidget {
         final isDoctor = profile?.role == 'doctor';
         final name = profile?.fullName ?? 'Welcome';
         final initials = name.trim().isNotEmpty
-            ? name.trim().split(' ').map((p) => p[0]).take(2).join().toUpperCase()
+            ? name.trim().split(' ').where((p) => p.isNotEmpty).map((p) => p[0]).take(2).join().toUpperCase()
             : '?';
         return Scaffold(
           backgroundColor: AppTheme.background,

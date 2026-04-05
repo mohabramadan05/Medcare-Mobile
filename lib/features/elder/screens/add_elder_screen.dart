@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -36,12 +35,6 @@ class _AddElderScreenState extends ConsumerState<AddElderScreen> {
     super.dispose();
   }
 
-  String _generateCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final rand = Random();
-    return 'ELD-${List.generate(6, (_) => chars[rand.nextInt(chars.length)]).join()}';
-  }
-
   int? _calcAge() {
     if (_dob == null) return null;
     final now = DateTime.now();
@@ -69,7 +62,6 @@ class _AddElderScreenState extends ConsumerState<AddElderScreen> {
       final client = Supabase.instance.client;
       final userId = client.auth.currentUser!.id;
       final elder = await client.from('elders').insert({
-        'patient_code': _generateCode(),
         'full_name': _nameCtrl.text.trim(),
         if (_dob != null)
           'date_of_birth': DateFormat('yyyy-MM-dd').format(_dob!),

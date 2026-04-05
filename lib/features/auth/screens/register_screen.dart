@@ -16,8 +16,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  final _specializationCtrl = TextEditingController();
-  String _role = 'user';
   bool _loading = false;
   bool _obscure = true;
 
@@ -26,7 +24,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
-    _specializationCtrl.dispose();
     super.dispose();
   }
 
@@ -37,14 +34,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       final res = await Supabase.instance.client.auth.signUp(
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
+        data: {'full_name': _nameCtrl.text.trim()},
       );
       if (res.user != null) {
-        await Supabase.instance.client.from('profiles').upsert({
-          'id': res.user!.id,
-          'full_name': _nameCtrl.text.trim(),
-          'role': _role,
-          if (_role == 'doctor') 'doctor_specialization': _specializationCtrl.text.trim(),
-        });
         if (mounted) context.go('/home');
       }
     } on AuthException catch (e) {
@@ -141,47 +133,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
-                const Text('I am a:',
-                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _RoleChip(
-                        label: 'Patient / Caregiver',
-                        icon: Icons.person,
-                        selected: _role == 'user',
-                        onTap: () => setState(() => _role = 'user'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _RoleChip(
-                        label: 'Doctor',
-                        icon: Icons.medical_information,
-                        selected: _role == 'doctor',
-                        onTap: () => setState(() => _role = 'doctor'),
-                      ),
-                    ),
-                  ],
-                ),
-                if (_role == 'doctor') ...[
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _specializationCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Specialization',
-                      prefixIcon: Icon(Icons.medical_information_outlined),
-                    ),
-                    validator: (v) {
-                      if (_role == 'doctor' && (v == null || v.isEmpty)) {
-                        return 'Specialization is required for doctors';
-                      }
-                      return null;
-                    },
-                  ),
-                ],
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: _loading ? null : _register,
@@ -209,55 +160,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RoleChip extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _RoleChip(
-      {required this.label,
-      required this.icon,
-      required this.selected,
-      required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: selected ? AppTheme.primary.withValues(alpha: 0.1) : AppTheme.surface,
-          border: Border.all(
-              color: selected ? AppTheme.primary : AppTheme.border,
-              width: selected ? 2 : 1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon,
-                size: 18,
-                color: selected ? AppTheme.primary : AppTheme.textSecondary),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                  color: selected ? AppTheme.primary : AppTheme.textSecondary,
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );

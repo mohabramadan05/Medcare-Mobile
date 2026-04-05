@@ -107,9 +107,9 @@ class ElderVitalsScreen extends ConsumerWidget {
                     if (tempCtrl.text.isNotEmpty)
                       'temperature_c': double.tryParse(tempCtrl.text),
                     if (sugarCtrl.text.isNotEmpty)
-                      'blood_sugar_mgdl': double.tryParse(sugarCtrl.text),
+                      'blood_sugar_mgdl': int.tryParse(sugarCtrl.text),
                     if (o2Ctrl.text.isNotEmpty)
-                      'oxygen_saturation_percent': double.tryParse(o2Ctrl.text),
+                      'oxygen_saturation_percent': int.tryParse(o2Ctrl.text),
                     if (weightCtrl.text.isNotEmpty)
                       'weight_kg': double.tryParse(weightCtrl.text),
                     if (notesCtrl.text.isNotEmpty) 'notes': notesCtrl.text.trim(),

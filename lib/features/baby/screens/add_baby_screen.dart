@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -35,12 +34,6 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
     super.dispose();
   }
 
-  String _generateCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final rand = Random();
-    return 'BAB-${List.generate(6, (_) => chars[rand.nextInt(chars.length)]).join()}';
-  }
-
   Future<void> _pickDate() async {
     final d = await showDatePicker(
       context: context,
@@ -65,7 +58,6 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
       final client = Supabase.instance.client;
       final userId = client.auth.currentUser!.id;
       final baby = await client.from('babies').insert({
-        'patient_code': _generateCode(),
         'name': _nameCtrl.text.trim(),
         'date_of_birth': DateFormat('yyyy-MM-dd').format(_dob!),
         'gender': _gender,
@@ -92,6 +84,7 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
       }
     } catch (e) {
       if (mounted) {
+        debugPrint("errororor " + e.toString());
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Error: $e'),
           backgroundColor: AppTheme.error,
