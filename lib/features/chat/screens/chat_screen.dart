@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../providers/chat_provider.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -76,6 +77,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final messagesAsync =
         ref.watch(messagesProvider(widget.conversationId));
     final userId =
@@ -105,8 +107,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               Text(widget.doctorName,
                   style: const TextStyle(
                       fontSize: 15, fontWeight: FontWeight.w700)),
-              const Text('Doctor',
-                  style: TextStyle(
+              Text(l.doctor,
+                  style: const TextStyle(
                       fontSize: 11,
                       color: AppTheme.textSecondary,
                       fontWeight: FontWeight.normal)),
@@ -144,14 +146,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               size: 30),
                         ),
                         const SizedBox(height: 16),
-                        const Text('No messages yet',
-                            style: TextStyle(
+                        Text(l.noMessages,
+                            style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 16,
                                 color: AppTheme.textPrimary)),
                         const SizedBox(height: 4),
-                        const Text('Say hello! 👋',
-                            style: TextStyle(
+                        Text(l.sayHello,
+                            style: const TextStyle(
                                 color: AppTheme.textSecondary,
                                 fontSize: 14)),
                       ],
@@ -263,7 +265,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     textCapitalization: TextCapitalization.sentences,
                     onSubmitted: (_) => _send(),
                     decoration: InputDecoration(
-                      hintText: 'Type a message...',
+                      hintText: l.typeMessage,
                       hintStyle: const TextStyle(
                           color: AppTheme.textLight, fontSize: 14),
                       filled: true,
@@ -321,16 +323,17 @@ class _DateChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final now = DateTime.now();
     String label;
     if (date.year == now.year &&
         date.month == now.month &&
         date.day == now.day) {
-      label = 'Today';
+      label = l.today;
     } else if (date.year == now.year &&
         date.month == now.month &&
         date.day == now.day - 1) {
-      label = 'Yesterday';
+      label = l.yesterday;
     } else {
       label = DateFormat('MMM dd, yyyy').format(date);
     }

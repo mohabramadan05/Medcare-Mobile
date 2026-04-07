@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -31,6 +32,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppTheme.primary,
       body: Center(
@@ -47,9 +49,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               child: const Icon(Icons.medical_services, size: 48, color: AppTheme.primary),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'MedCare',
-              style: TextStyle(
+            Text(
+              l.appName,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
@@ -58,7 +60,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Your Health Companion',
+              l.yourHealthCompanion,
               style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 16),
             ),
             const SizedBox(height: 48),

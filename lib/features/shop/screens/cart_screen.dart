@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
@@ -34,9 +35,10 @@ class CartScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final cartAsync = ref.watch(cartItemsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('My Cart')),
+      appBar: AppBar(title: Text(l.myCart)),
       body: cartAsync.when(
         loading: () => const LoadingWidget(),
         error: (e, _) => AppErrorWidget(
@@ -44,10 +46,10 @@ class CartScreen extends ConsumerWidget {
             onRetry: () => ref.invalidate(cartItemsProvider)),
         data: (items) {
           if (items.isEmpty) {
-            return const EmptyStateWidget(
+            return EmptyStateWidget(
                 icon: Icons.shopping_cart_outlined,
-                title: 'Cart is empty',
-                subtitle: 'Add products from the shop');
+                title: l.cartEmpty,
+                subtitle: l.addFromShop);
           }
           final total =
               items.fold<double>(0, (s, i) => s + i.total);
@@ -146,8 +148,8 @@ class CartScreen extends ConsumerWidget {
                   child: Column(
                     children: [
                       Row(children: [
-                        const Text('Total',
-                            style: TextStyle(
+                        Text(l.total,
+                            style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600)),
                         const Spacer(),
@@ -161,13 +163,13 @@ class CartScreen extends ConsumerWidget {
                       ElevatedButton(
                         onPressed: () {
                           ScaffoldMessenger.of(context)
-                              .showSnackBar(const SnackBar(
+                              .showSnackBar(SnackBar(
                                   content:
-                                      Text('Order placed! 🎉'),
+                                      Text(l.orderPlaced),
                                   backgroundColor:
                                       AppTheme.healthGreen));
                         },
-                        child: const Text('Place Order'),
+                        child: Text(l.placeOrder),
                       ),
                     ],
                   ),

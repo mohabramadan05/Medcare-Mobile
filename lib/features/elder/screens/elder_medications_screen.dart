@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
@@ -12,6 +13,7 @@ class ElderMedicationsScreen extends ConsumerWidget {
   const ElderMedicationsScreen({super.key, required this.elderId});
 
   Future<void> _add(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context);
     final nameCtrl = TextEditingController();
     final dosageCtrl = TextEditingController();
     final freqCtrl = TextEditingController();
@@ -32,39 +34,39 @@ class ElderMedicationsScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Add Medication',
+            Text(l.addMedication,
                 style:
-                    TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             TextField(
                 controller: nameCtrl,
                 decoration:
-                    const InputDecoration(labelText: 'Medicine Name *')),
+                    InputDecoration(labelText: l.medicineName)),
             const SizedBox(height: 12),
             TextField(
                 controller: dosageCtrl,
-                decoration: const InputDecoration(labelText: 'Dosage')),
+                decoration: InputDecoration(labelText: l.dosage)),
             const SizedBox(height: 12),
             TextField(
                 controller: freqCtrl,
                 decoration:
-                    const InputDecoration(labelText: 'Frequency')),
+                    InputDecoration(labelText: l.frequency)),
             const SizedBox(height: 12),
             TextField(
                 controller: timeCtrl,
                 decoration:
-                    const InputDecoration(labelText: 'Time of Day')),
+                    InputDecoration(labelText: l.timeOfDay)),
             const SizedBox(height: 12),
             TextField(
                 controller: durationCtrl,
                 decoration:
-                    const InputDecoration(labelText: 'Duration')),
+                    InputDecoration(labelText: l.duration)),
             const SizedBox(height: 12),
             TextField(
                 controller: instrCtrl,
                 maxLines: 2,
                 decoration:
-                    const InputDecoration(labelText: 'Instructions')),
+                    InputDecoration(labelText: l.instructions)),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
@@ -93,8 +95,8 @@ class ElderMedicationsScreen extends ConsumerWidget {
                   if (context.mounted) {
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Medication added!'),
+                        SnackBar(
+                            content: Text(l.medicationAdded),
                             backgroundColor: AppTheme.healthGreen));
                   }
                 } catch (e) {
@@ -105,7 +107,7 @@ class ElderMedicationsScreen extends ConsumerWidget {
                   }
                 }
               },
-              child: const Text('Save'),
+              child: Text(l.save),
             ),
           ],
         ),
@@ -115,9 +117,10 @@ class ElderMedicationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final medsAsync = ref.watch(elderMedicationsProvider(elderId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Medications')),
+      appBar: AppBar(title: Text(l.medications)),
       body: medsAsync.when(
         loading: () => const LoadingWidget(),
         error: (e, _) => AppErrorWidget(
@@ -126,10 +129,10 @@ class ElderMedicationsScreen extends ConsumerWidget {
                 ref.invalidate(elderMedicationsProvider(elderId))),
         data: (meds) {
           if (meds.isEmpty) {
-            return const EmptyStateWidget(
+            return EmptyStateWidget(
                 icon: Icons.medication,
-                title: 'No medications',
-                subtitle: 'Add medications for this elder');
+                title: l.noMedications,
+                subtitle: l.addMedicationsForElder);
           }
           return ListView.separated(
             padding: const EdgeInsets.all(16),

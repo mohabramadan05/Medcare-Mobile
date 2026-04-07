@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../providers/elder_provider.dart';
@@ -64,8 +65,9 @@ class _ElderSafetyInfoScreenState
       });
       ref.invalidate(elderSafetyInfoProvider(widget.elderId));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Safety info saved!'),
+        final l = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(l.safetyInfoSaved),
             backgroundColor: AppTheme.healthGreen));
       }
     } catch (e) {
@@ -81,10 +83,11 @@ class _ElderSafetyInfoScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final safetyAsync =
         ref.watch(elderSafetyInfoProvider(widget.elderId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Safety Info')),
+      appBar: AppBar(title: Text(l.safetyInfo)),
       body: safetyAsync.when(
         loading: () => const LoadingWidget(),
         error: (e, _) => AppErrorWidget(
@@ -98,64 +101,64 @@ class _ElderSafetyInfoScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const _SectionHeader(
-                    label: 'Primary Emergency Contact',
+                _SectionHeader(
+                    label: l.primaryContact,
                     icon: Icons.person_pin,
                     color: AppTheme.error),
                 const SizedBox(height: 12),
                 TextField(
                     controller: _p1Name,
-                    decoration: const InputDecoration(
-                        labelText: 'Full Name',
-                        prefixIcon: Icon(Icons.person))),
+                    decoration: InputDecoration(
+                        labelText: l.fullName,
+                        prefixIcon: const Icon(Icons.person))),
                 const SizedBox(height: 12),
                 TextField(
                     controller: _p1Phone,
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                        labelText: 'Phone Number',
-                        prefixIcon: Icon(Icons.phone))),
+                    decoration: InputDecoration(
+                        labelText: l.phoneNumber,
+                        prefixIcon: const Icon(Icons.phone))),
                 const SizedBox(height: 12),
                 TextField(
                     controller: _p1Rel,
-                    decoration: const InputDecoration(
-                        labelText: 'Relationship',
-                        prefixIcon: Icon(Icons.family_restroom))),
+                    decoration: InputDecoration(
+                        labelText: l.relationship,
+                        prefixIcon: const Icon(Icons.family_restroom))),
                 const SizedBox(height: 20),
-                const _SectionHeader(
-                    label: 'Secondary Emergency Contact',
+                _SectionHeader(
+                    label: l.secondaryContact,
                     icon: Icons.person_pin_circle,
                     color: AppTheme.elderAccent),
                 const SizedBox(height: 12),
                 TextField(
                     controller: _p2Name,
-                    decoration: const InputDecoration(
-                        labelText: 'Full Name',
-                        prefixIcon: Icon(Icons.person))),
+                    decoration: InputDecoration(
+                        labelText: l.fullName,
+                        prefixIcon: const Icon(Icons.person))),
                 const SizedBox(height: 12),
                 TextField(
                     controller: _p2Phone,
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                        labelText: 'Phone Number',
-                        prefixIcon: Icon(Icons.phone))),
+                    decoration: InputDecoration(
+                        labelText: l.phoneNumber,
+                        prefixIcon: const Icon(Icons.phone))),
                 const SizedBox(height: 12),
                 TextField(
                     controller: _p2Rel,
-                    decoration: const InputDecoration(
-                        labelText: 'Relationship',
-                        prefixIcon: Icon(Icons.family_restroom))),
+                    decoration: InputDecoration(
+                        labelText: l.relationship,
+                        prefixIcon: const Icon(Icons.family_restroom))),
                 const SizedBox(height: 20),
-                const _SectionHeader(
-                    label: 'Additional Information',
+                _SectionHeader(
+                    label: l.additionalInfo,
                     icon: Icons.info_outline,
                     color: AppTheme.primary),
                 const SizedBox(height: 12),
                 TextField(
                     controller: _addInfo,
                     maxLines: 4,
-                    decoration: const InputDecoration(
-                        labelText: 'Safety notes, medical alerts...',
+                    decoration: InputDecoration(
+                        labelText: l.safetyNotes,
                         alignLabelWithHint: true)),
                 const SizedBox(height: 24),
                 ElevatedButton(
@@ -166,7 +169,7 @@ class _ElderSafetyInfoScreenState
                           height: 20,
                           child: CircularProgressIndicator(
                               color: Colors.white, strokeWidth: 2))
-                      : const Text('Save Safety Info'),
+                      : Text(l.saveSafetyInfo),
                 ),
               ],
             ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
@@ -30,6 +31,15 @@ class BabyRoutineScreen extends ConsumerWidget {
     }
   }
 
+  String _activityLabel(String type, AppLocalizations l) {
+    switch (type) {
+      case 'feeding': return l.activityFeeding;
+      case 'sleep': return l.activitySleep;
+      case 'diaper': return l.activityDiaper;
+      default: return l.activityOther;
+    }
+  }
+
   Future<DateTime?> _pickDateTime(BuildContext context) async {
     final date = await showDatePicker(
       context: context,
@@ -46,6 +56,7 @@ class BabyRoutineScreen extends ConsumerWidget {
   }
 
   Future<void> _addActivity(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context);
     String activityType = 'feeding';
     DateTime activityTime = DateTime.now();
     final detailsCtrl = TextEditingController();
@@ -65,22 +76,24 @@ class BabyRoutineScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Log Activity',
-                  style: TextStyle(
+              Text(l.logActivity,
+                  style: const TextStyle(
                       fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: activityType,
-                decoration: const InputDecoration(
-                    labelText: 'Activity Type'),
+                decoration: InputDecoration(
+                    labelText: l.activityType),
                 items: [
-                  'feeding', 'sleep', 'diaper', 'other'
-                ]
-                    .map((a) => DropdownMenuItem(
-                        value: a,
-                        child: Text(
-                            a[0].toUpperCase() + a.substring(1))))
-                    .toList(),
+                  DropdownMenuItem(
+                      value: 'feeding', child: Text(l.activityFeeding)),
+                  DropdownMenuItem(
+                      value: 'sleep', child: Text(l.activitySleep)),
+                  DropdownMenuItem(
+                      value: 'diaper', child: Text(l.activityDiaper)),
+                  DropdownMenuItem(
+                      value: 'other', child: Text(l.activityOther)),
+                ],
                 onChanged: (v) =>
                     setS(() => activityType = v!),
               ),
@@ -98,8 +111,8 @@ class BabyRoutineScreen extends ConsumerWidget {
               TextField(
                   controller: detailsCtrl,
                   maxLines: 2,
-                  decoration: const InputDecoration(
-                      labelText: 'Details (optional)')),
+                  decoration: InputDecoration(
+                      labelText: l.details)),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () async {
@@ -121,8 +134,8 @@ class BabyRoutineScreen extends ConsumerWidget {
                     if (context.mounted) {
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Activity logged!'),
+                          SnackBar(
+                              content: Text(l.activityLogged),
                               backgroundColor:
                                   AppTheme.healthGreen));
                     }
@@ -135,7 +148,7 @@ class BabyRoutineScreen extends ConsumerWidget {
                     }
                   }
                 },
-                child: const Text('Log Activity'),
+                child: Text(l.logActivity),
               ),
             ],
           ),
@@ -146,9 +159,10 @@ class BabyRoutineScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final routineAsync = ref.watch(babyRoutineProvider(babyId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Daily Routine')),
+      appBar: AppBar(title: Text(l.dailyRoutine)),
       body: routineAsync.when(
         loading: () => const LoadingWidget(),
         error: (e, _) => AppErrorWidget(
@@ -157,11 +171,10 @@ class BabyRoutineScreen extends ConsumerWidget {
                 ref.invalidate(babyRoutineProvider(babyId))),
         data: (activities) {
           if (activities.isEmpty) {
-            return const EmptyStateWidget(
+            return EmptyStateWidget(
                 icon: Icons.schedule,
-                title: 'No activities logged',
-                subtitle:
-                    'Start logging your baby\'s daily routine');
+                title: l.noActivities,
+                subtitle: l.startLogging);
           }
           final grouped = <String, List<dynamic>>{};
           for (final a in activities) {
@@ -219,10 +232,8 @@ class BabyRoutineScreen extends ConsumerWidget {
                                   CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                    a.activityType[0]
-                                            .toUpperCase() +
-                                        a.activityType
-                                            .substring(1),
+                                    _activityLabel(
+                                        a.activityType, l),
                                     style: const TextStyle(
                                         fontWeight:
                                             FontWeight.w600,

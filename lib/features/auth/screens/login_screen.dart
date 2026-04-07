@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -47,6 +48,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
@@ -70,26 +72,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Center(
-                  child: Text('Welcome Back',
-                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
-                ),
+                Center(child: Text(l.welcomeBack,
+                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.textPrimary))),
                 const SizedBox(height: 8),
-                const Center(
-                  child: Text('Sign in to your account',
-                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 15)),
-                ),
+                Center(child: Text(l.signInToAccount,
+                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 15))),
                 const SizedBox(height: 40),
                 TextFormField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
+                  decoration: InputDecoration(
+                    labelText: l.email,
+                    prefixIcon: const Icon(Icons.email_outlined),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Email is required';
-                    if (!v.contains('@')) return 'Enter a valid email';
+                    if (v == null || v.isEmpty) return l.emailRequired;
+                    if (!v.contains('@')) return l.emailInvalid;
                     return null;
                   },
                 ),
@@ -98,7 +96,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   controller: _passwordCtrl,
                   obscureText: _obscure,
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                    labelText: l.password,
                     prefixIcon: const Icon(Icons.lock_outlined),
                     suffixIcon: IconButton(
                       icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
@@ -106,8 +104,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Password is required';
-                    if (v.length < 6) return 'Password must be at least 6 characters';
+                    if (v == null || v.isEmpty) return l.passwordRequired;
+                    if (v.length < 6) return l.passwordMin;
                     return null;
                   },
                 ),
@@ -115,22 +113,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ElevatedButton(
                   onPressed: _loading ? null : _login,
                   child: _loading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
+                      ? const SizedBox(width: 20, height: 20,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Sign In'),
+                      : Text(l.signIn),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("Don't have an account? ",
-                        style: TextStyle(color: AppTheme.textSecondary)),
+                    Text(l.noAccount, style: const TextStyle(color: AppTheme.textSecondary)),
                     GestureDetector(
                       onTap: () => context.go('/register'),
-                      child: const Text('Sign Up',
-                          style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w600)),
+                      child: Text(l.signUp,
+                          style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),

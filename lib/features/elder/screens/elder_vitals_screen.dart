@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
@@ -13,6 +14,7 @@ class ElderVitalsScreen extends ConsumerWidget {
   const ElderVitalsScreen({super.key, required this.elderId});
 
   Future<void> _addVitals(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context);
     final bpSysCtrl = TextEditingController();
     final bpDiaCtrl = TextEditingController();
     final hrCtrl = TextEditingController();
@@ -35,21 +37,21 @@ class ElderVitalsScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Log Vitals',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(l.logVitals,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             Row(children: [
               Expanded(
                   child: TextField(
                       controller: bpSysCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'BP Systolic'))),
+                      decoration: InputDecoration(labelText: l.bpSystolic))),
               const SizedBox(width: 12),
               Expanded(
                   child: TextField(
                       controller: bpDiaCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'BP Diastolic'))),
+                      decoration: InputDecoration(labelText: l.bpDiastolic))),
             ]),
             const SizedBox(height: 12),
             Row(children: [
@@ -57,13 +59,13 @@ class ElderVitalsScreen extends ConsumerWidget {
                   child: TextField(
                       controller: hrCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Heart Rate (bpm)'))),
+                      decoration: InputDecoration(labelText: l.heartRate))),
               const SizedBox(width: 12),
               Expanded(
                   child: TextField(
                       controller: tempCtrl,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(labelText: 'Temp (°C)'))),
+                      decoration: InputDecoration(labelText: l.temperature))),
             ]),
             const SizedBox(height: 12),
             Row(children: [
@@ -71,24 +73,24 @@ class ElderVitalsScreen extends ConsumerWidget {
                   child: TextField(
                       controller: sugarCtrl,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(labelText: 'Blood Sugar (mg/dL)'))),
+                      decoration: InputDecoration(labelText: l.bloodSugar))),
               const SizedBox(width: 12),
               Expanded(
                   child: TextField(
                       controller: o2Ctrl,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(labelText: 'O2 Sat (%)'))),
+                      decoration: InputDecoration(labelText: l.o2Sat))),
             ]),
             const SizedBox(height: 12),
             TextField(
                 controller: weightCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Weight (kg)')),
+                decoration: InputDecoration(labelText: l.weightKgLabel)),
             const SizedBox(height: 12),
             TextField(
                 controller: notesCtrl,
                 maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Notes')),
+                decoration: InputDecoration(labelText: l.notes)),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
@@ -118,8 +120,8 @@ class ElderVitalsScreen extends ConsumerWidget {
                   ref.invalidate(elderVitalsProvider(elderId));
                   if (context.mounted) {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Vitals recorded!'),
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(l.vitalsRecorded),
                         backgroundColor: AppTheme.healthGreen));
                   }
                 } catch (e) {
@@ -130,7 +132,7 @@ class ElderVitalsScreen extends ConsumerWidget {
                   }
                 }
               },
-              child: const Text('Save Vitals'),
+              child: Text(l.saveVitals),
             ),
           ],
         ),
@@ -140,9 +142,10 @@ class ElderVitalsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final vitalsAsync = ref.watch(elderVitalsProvider(elderId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Vitals')),
+      appBar: AppBar(title: Text(l.vitals)),
       body: vitalsAsync.when(
         loading: () => const LoadingWidget(),
         error: (e, _) => AppErrorWidget(
@@ -150,10 +153,10 @@ class ElderVitalsScreen extends ConsumerWidget {
             onRetry: () => ref.invalidate(elderVitalsProvider(elderId))),
         data: (vitals) {
           if (vitals.isEmpty) {
-            return const EmptyStateWidget(
+            return EmptyStateWidget(
                 icon: Icons.monitor_heart,
-                title: 'No vitals recorded',
-                subtitle: 'Log the first vital signs');
+                title: l.noVitals,
+                subtitle: l.logFirstVitals);
           }
           final latest = vitals.first;
           return SingleChildScrollView(
@@ -161,14 +164,14 @@ class ElderVitalsScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Latest Readings',
-                    style: TextStyle(
+                Text(l.latestReadings,
+                    style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.textPrimary)),
                 const SizedBox(height: 4),
                 Text(
-                    'Measured: ${DateFormat('MMM dd, yyyy • hh:mm a').format(latest.measuredAt)}',
+                    '${l.measuredAt}${DateFormat('MMM dd, yyyy • hh:mm a').format(latest.measuredAt)}',
                     style: const TextStyle(
                         fontSize: 12, color: AppTheme.textSecondary)),
                 const SizedBox(height: 12),
@@ -183,7 +186,7 @@ class ElderVitalsScreen extends ConsumerWidget {
                     if (latest.bloodPressureSystolic != null)
                       _VitalCard(
                           icon: Icons.favorite,
-                          label: 'Blood Pressure',
+                          label: l.bloodPressure,
                           value:
                               '${latest.bloodPressureSystolic}/${latest.bloodPressureDiastolic}',
                           unit: 'mmHg',
@@ -191,35 +194,35 @@ class ElderVitalsScreen extends ConsumerWidget {
                     if (latest.heartRate != null)
                       _VitalCard(
                           icon: Icons.monitor_heart,
-                          label: 'Heart Rate',
+                          label: l.heartRateLabel,
                           value: '${latest.heartRate}',
                           unit: 'bpm',
                           color: AppTheme.babyAccent),
                     if (latest.temperatureC != null)
                       _VitalCard(
                           icon: Icons.thermostat,
-                          label: 'Temperature',
+                          label: l.temperatureLabel,
                           value: '${latest.temperatureC}',
                           unit: '°C',
                           color: AppTheme.warning),
                     if (latest.oxygenSaturationPercent != null)
                       _VitalCard(
                           icon: Icons.air,
-                          label: 'O2 Saturation',
+                          label: l.o2Saturation,
                           value: '${latest.oxygenSaturationPercent}',
                           unit: '%',
                           color: AppTheme.primary),
                     if (latest.bloodSugarMgdl != null)
                       _VitalCard(
                           icon: Icons.water_drop,
-                          label: 'Blood Sugar',
+                          label: l.bloodSugarLabel,
                           value: '${latest.bloodSugarMgdl}',
                           unit: 'mg/dL',
                           color: AppTheme.elderAccent),
                     if (latest.weightKg != null)
                       _VitalCard(
                           icon: Icons.monitor_weight,
-                          label: 'Weight',
+                          label: l.weightLabel,
                           value: '${latest.weightKg}',
                           unit: 'kg',
                           color: AppTheme.healthGreen),
@@ -227,8 +230,8 @@ class ElderVitalsScreen extends ConsumerWidget {
                 ),
                 if (vitals.length > 1) ...[
                   const SizedBox(height: 20),
-                  const Text('History',
-                      style: TextStyle(
+                  Text(l.history,
+                      style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: AppTheme.textPrimary)),

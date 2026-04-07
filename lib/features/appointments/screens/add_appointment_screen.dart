@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../baby/providers/baby_provider.dart';
 import '../../elder/providers/elder_provider.dart';
@@ -79,11 +80,12 @@ class _AddAppointmentScreenState extends ConsumerState<AddAppointmentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final babiesAsync = ref.watch(userBabiesProvider);
     final eldersAsync = ref.watch(userEldersProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Appointment')),
+      appBar: AppBar(title: Text(l.addAppointment)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -91,14 +93,14 @@ class _AddAppointmentScreenState extends ConsumerState<AddAppointmentScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Patient Type',
+              Text(l.patientType,
                   style:
-                      TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+                      const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
               const SizedBox(height: 8),
               Row(children: [
                 Expanded(
                   child: _TypeChip(
-                    label: 'Baby',
+                    label: l.baby,
                     icon: Icons.child_care,
                     color: AppTheme.babyAccent,
                     selected: _patientType == 'baby',
@@ -111,7 +113,7 @@ class _AddAppointmentScreenState extends ConsumerState<AddAppointmentScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _TypeChip(
-                    label: 'Elder',
+                    label: l.elder,
                     icon: Icons.elderly,
                     color: AppTheme.elderAccent,
                     selected: _patientType == 'elder',
@@ -125,9 +127,9 @@ class _AddAppointmentScreenState extends ConsumerState<AddAppointmentScreen> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _selectedPatientId,
-                decoration: const InputDecoration(
-                    labelText: 'Select Patient',
-                    prefixIcon: Icon(Icons.person)),
+                decoration: InputDecoration(
+                    labelText: l.selectPatient,
+                    prefixIcon: const Icon(Icons.person)),
                 items: _patientType == 'baby'
                     ? (babiesAsync.whenOrNull(data: (b) => b) ?? [])
                         .map((b) =>
@@ -138,17 +140,17 @@ class _AddAppointmentScreenState extends ConsumerState<AddAppointmentScreen> {
                             value: e.id, child: Text(e.fullName)))
                         .toList(),
                 onChanged: (v) => setState(() => _selectedPatientId = v),
-                validator: (v) => v == null ? 'Please select a patient' : null,
+                validator: (v) => v == null ? l.selectPatientError : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _typeCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Appointment Type',
-                    prefixIcon: Icon(Icons.medical_services_outlined),
-                    hintText: 'e.g. Check-up, Vaccination'),
+                decoration: InputDecoration(
+                    labelText: l.appointmentType,
+                    prefixIcon: const Icon(Icons.medical_services_outlined),
+                    hintText: l.appointmentTypeHint),
                 validator: (v) => v == null || v.isEmpty
-                    ? 'Please enter appointment type'
+                    ? l.appointmentTypeRequired
                     : null,
               ),
               const SizedBox(height: 16),
@@ -170,7 +172,7 @@ class _AddAppointmentScreenState extends ConsumerState<AddAppointmentScreen> {
                       _dateTime != null
                           ? DateFormat('MMM dd, yyyy • hh:mm a')
                               .format(_dateTime!)
-                          : 'Select Date & Time *',
+                          : l.selectDateTime,
                       style: TextStyle(
                           color: _dateTime != null
                               ? AppTheme.textPrimary
@@ -184,9 +186,9 @@ class _AddAppointmentScreenState extends ConsumerState<AddAppointmentScreen> {
               TextFormField(
                 controller: _notesCtrl,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                    labelText: 'Notes (optional)',
-                    prefixIcon: Icon(Icons.note_outlined),
+                decoration: InputDecoration(
+                    labelText: '${l.notes} (${l.optional})',
+                    prefixIcon: const Icon(Icons.note_outlined),
                     alignLabelWithHint: true),
               ),
               const SizedBox(height: 24),
@@ -198,7 +200,7 @@ class _AddAppointmentScreenState extends ConsumerState<AddAppointmentScreen> {
                         height: 20,
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2))
-                    : const Text('Schedule Appointment'),
+                    : Text(l.scheduleAppointment),
               ),
             ],
           ),

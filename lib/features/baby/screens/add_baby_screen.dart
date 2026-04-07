@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../providers/baby_provider.dart';
 
@@ -45,10 +46,11 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
   }
 
   Future<void> _submit() async {
+    final l = AppLocalizations.of(context);
     if (!_formKey.currentState!.validate()) return;
     if (_dob == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Please select date of birth'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(l.selectDOB),
         backgroundColor: AppTheme.error,
       ));
       return;
@@ -76,8 +78,8 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
           .insert({'user_id': userId, 'baby_id': baby['id']});
       ref.invalidate(userBabiesProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Baby added successfully!'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l.babyAddedSuccess),
           backgroundColor: AppTheme.healthGreen,
         ));
         context.pop();
@@ -97,8 +99,9 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Baby')),
+      appBar: AppBar(title: Text(l.addBaby)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -108,11 +111,11 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
             children: [
               TextFormField(
                 controller: _nameCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Baby Name *',
-                    prefixIcon: Icon(Icons.child_care)),
+                decoration: InputDecoration(
+                    labelText: l.babyName,
+                    prefixIcon: const Icon(Icons.child_care)),
                 validator: (v) =>
-                    v == null || v.isEmpty ? 'Name is required' : null,
+                    v == null || v.isEmpty ? l.nameRequired : null,
               ),
               const SizedBox(height: 16),
               GestureDetector(
@@ -132,7 +135,7 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
                     Text(
                       _dob != null
                           ? 'DOB: ${DateFormat('MMM dd, yyyy').format(_dob!)}'
-                          : 'Date of Birth *',
+                          : l.dateOfBirth,
                       style: TextStyle(
                           color: _dob != null
                               ? AppTheme.textPrimary
@@ -145,13 +148,13 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _gender,
-                decoration: const InputDecoration(
-                    labelText: 'Gender',
-                    prefixIcon: Icon(Icons.people_outlined)),
-                items: ['Male', 'Female']
-                    .map((g) =>
-                        DropdownMenuItem(value: g, child: Text(g)))
-                    .toList(),
+                decoration: InputDecoration(
+                    labelText: l.gender,
+                    prefixIcon: const Icon(Icons.people_outlined)),
+                items: [
+                  DropdownMenuItem(value: 'Male', child: Text(l.male)),
+                  DropdownMenuItem(value: 'Female', child: Text(l.female)),
+                ],
                 onChanged: (v) => setState(() => _gender = v!),
               ),
               const SizedBox(height: 16),
@@ -159,35 +162,35 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
                 controller: _weightCtrl,
                 keyboardType: const TextInputType.numberWithOptions(
                     decimal: true),
-                decoration: const InputDecoration(
-                    labelText: 'Weight at Birth (kg)',
-                    prefixIcon: Icon(Icons.monitor_weight_outlined)),
+                decoration: InputDecoration(
+                    labelText: l.weightAtBirth,
+                    prefixIcon: const Icon(Icons.monitor_weight_outlined)),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _lengthCtrl,
                 keyboardType: const TextInputType.numberWithOptions(
                     decimal: true),
-                decoration: const InputDecoration(
-                    labelText: 'Length at Birth (cm)',
-                    prefixIcon: Icon(Icons.straighten)),
+                decoration: InputDecoration(
+                    labelText: l.lengthAtBirth,
+                    prefixIcon: const Icon(Icons.straighten)),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _headCtrl,
                 keyboardType: const TextInputType.numberWithOptions(
                     decimal: true),
-                decoration: const InputDecoration(
-                    labelText: 'Head Circumference (cm)',
-                    prefixIcon: Icon(Icons.face)),
+                decoration: InputDecoration(
+                    labelText: l.headCircumference,
+                    prefixIcon: const Icon(Icons.face)),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _problemsCtrl,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                    labelText: 'Congenital Problems (optional)',
-                    prefixIcon: Icon(Icons.note_outlined),
+                decoration: InputDecoration(
+                    labelText: l.congenitalProblems,
+                    prefixIcon: const Icon(Icons.note_outlined),
                     alignLabelWithHint: true),
               ),
               const SizedBox(height: 24),
@@ -199,7 +202,7 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
                         height: 20,
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2))
-                    : const Text('Add Baby'),
+                    : Text(l.addBaby),
               ),
             ],
           ),

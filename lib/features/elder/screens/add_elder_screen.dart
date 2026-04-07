@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../providers/elder_provider.dart';
 
 class AddElderScreen extends ConsumerStatefulWidget {
@@ -77,8 +78,9 @@ class _AddElderScreenState extends ConsumerState<AddElderScreen> {
           .insert({'user_id': userId, 'elder_id': elder['id']});
       ref.invalidate(userEldersProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Elder added successfully!'),
+        final l = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(l.elderAddedSuccess),
             backgroundColor: AppTheme.healthGreen));
         context.pop();
       }
@@ -95,8 +97,9 @@ class _AddElderScreenState extends ConsumerState<AddElderScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Elder')),
+      appBar: AppBar(title: Text(l.addElder)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -106,11 +109,11 @@ class _AddElderScreenState extends ConsumerState<AddElderScreen> {
             children: [
               TextFormField(
                 controller: _nameCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Full Name *',
-                    prefixIcon: Icon(Icons.person)),
+                decoration: InputDecoration(
+                    labelText: '${l.fullName} *',
+                    prefixIcon: const Icon(Icons.person)),
                 validator: (v) =>
-                    v == null || v.isEmpty ? 'Name is required' : null,
+                    v == null || v.isEmpty ? l.nameRequired : null,
               ),
               const SizedBox(height: 16),
               GestureDetector(
@@ -130,7 +133,7 @@ class _AddElderScreenState extends ConsumerState<AddElderScreen> {
                     Text(
                       _dob != null
                           ? 'DOB: ${DateFormat('MMM dd, yyyy').format(_dob!)}'
-                          : 'Date of Birth',
+                          : l.dateOfBirth,
                       style: TextStyle(
                           color: _dob != null
                               ? AppTheme.textPrimary
@@ -143,10 +146,10 @@ class _AddElderScreenState extends ConsumerState<AddElderScreen> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _bloodType,
-                decoration: const InputDecoration(
-                    labelText: 'Blood Type',
+                decoration: InputDecoration(
+                    labelText: l.bloodType,
                     prefixIcon:
-                        Icon(Icons.water_drop_outlined)),
+                        const Icon(Icons.water_drop_outlined)),
                 items: _bloodTypes
                     .map((bt) => DropdownMenuItem(
                         value: bt, child: Text(bt)))
@@ -158,17 +161,17 @@ class _AddElderScreenState extends ConsumerState<AddElderScreen> {
               TextFormField(
                 controller: _phoneCtrl,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                    labelText: 'Phone Number',
-                    prefixIcon: Icon(Icons.phone_outlined)),
+                decoration: InputDecoration(
+                    labelText: l.phoneNumber,
+                    prefixIcon: const Icon(Icons.phone_outlined)),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _addressCtrl,
                 maxLines: 2,
-                decoration: const InputDecoration(
-                    labelText: 'Home Address',
-                    prefixIcon: Icon(Icons.home_outlined),
+                decoration: InputDecoration(
+                    labelText: l.homeAddress,
+                    prefixIcon: const Icon(Icons.home_outlined),
                     alignLabelWithHint: true),
               ),
               const SizedBox(height: 24),
@@ -180,7 +183,7 @@ class _AddElderScreenState extends ConsumerState<AddElderScreen> {
                         height: 20,
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2))
-                    : const Text('Add Elder'),
+                    : Text(l.addElder),
               ),
             ],
           ),

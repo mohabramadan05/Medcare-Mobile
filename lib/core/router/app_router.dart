@@ -20,6 +20,8 @@ import '../../features/baby/screens/baby_vaccinations_screen.dart';
 import '../../features/baby/screens/baby_routine_screen.dart';
 import '../../features/baby/screens/baby_medicines_screen.dart';
 import '../../features/baby/screens/baby_alerts_screen.dart';
+import '../../features/baby/screens/baby_monitoring_screen.dart';
+import '../../features/elder/screens/elder_monitoring_screen.dart';
 import '../../features/elder/screens/elders_list_screen.dart';
 import '../../features/elder/screens/add_elder_screen.dart';
 import '../../features/elder/screens/elder_detail_screen.dart';
@@ -105,6 +107,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) =>
             BabyAlertsScreen(babyId: state.pathParameters['id']!),
       ),
+      GoRoute(
+        path: '/babies/:id/monitoring',
+        builder: (_, state) => BabyMonitoringScreen(
+          babyId: state.pathParameters['id']!,
+          babyName: Uri.decodeComponent(
+              state.uri.queryParameters['name'] ?? 'Baby'),
+          patientCode: Uri.decodeComponent(
+              state.uri.queryParameters['code'] ?? ''),
+        ),
+      ),
       GoRoute(path: '/elders', builder: (_, __) => const EldersListScreen()),
       GoRoute(path: '/elders/add', builder: (_, __) => const AddElderScreen()),
       GoRoute(
@@ -136,6 +148,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/elders/:id/safety',
         builder: (_, state) =>
             ElderSafetyInfoScreen(elderId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/elders/:id/monitoring',
+        builder: (_, state) => ElderMonitoringScreen(
+          elderId: state.pathParameters['id']!,
+          elderName: Uri.decodeComponent(
+              state.uri.queryParameters['name'] ?? 'Elder'),
+          patientCode: Uri.decodeComponent(
+              state.uri.queryParameters['code'] ?? ''),
+        ),
       ),
     ],
   );

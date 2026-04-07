@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
@@ -38,10 +39,11 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
       }
       ref.invalidate(cartItemsProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Added to cart!'),
+        final l = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(l.addedToCart),
             backgroundColor: AppTheme.healthGreen,
-            duration: Duration(seconds: 1)));
+            duration: const Duration(seconds: 1)));
       }
     } catch (e) {
       if (mounted) {
@@ -53,12 +55,13 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final productsAsync = ref.watch(productsProvider);
     final cartCount = ref.watch(cartCountProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Shop'),
+        title: Text(l.shopTitle),
         actions: [
           Stack(
             children: [
@@ -95,10 +98,10 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             onRetry: () => ref.invalidate(productsProvider)),
         data: (products) {
           if (products.isEmpty) {
-            return const EmptyStateWidget(
+            return EmptyStateWidget(
                 icon: Icons.shopping_bag_outlined,
-                title: 'No products available',
-                subtitle: 'Check back later');
+                title: l.noProducts,
+                subtitle: l.checkBackLater);
           }
 
           // Build category list
@@ -127,7 +130,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: FilterChip(
-                        label: const Text('All'),
+                        label: Text(l.allCategories),
                         selected: _selectedCategory == null,
                         onSelected: (_) =>
                             setState(() => _selectedCategory = null),

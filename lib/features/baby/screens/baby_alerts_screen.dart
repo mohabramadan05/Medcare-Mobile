@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
@@ -13,9 +14,10 @@ class BabyAlertsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final alertsAsync = ref.watch(babyAlertsProvider(babyId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Alerts')),
+      appBar: AppBar(title: Text(l.alerts)),
       body: alertsAsync.when(
         loading: () => const LoadingWidget(),
         error: (e, _) => AppErrorWidget(
@@ -24,11 +26,10 @@ class BabyAlertsScreen extends ConsumerWidget {
                 ref.invalidate(babyAlertsProvider(babyId))),
         data: (alerts) {
           if (alerts.isEmpty) {
-            return const EmptyStateWidget(
+            return EmptyStateWidget(
                 icon: Icons.notifications_none,
-                title: 'No alerts',
-                subtitle:
-                    'Baby monitoring alerts will appear here');
+                title: l.noAlerts,
+                subtitle: l.babyAlertsSubtitle);
           }
           return ListView.separated(
             padding: const EdgeInsets.all(16),
@@ -68,7 +69,7 @@ class BabyAlertsScreen extends ConsumerWidget {
                       children: [
                         Text(
                             a.detectedObject ??
-                                'Alert detected',
+                                l.alertDetected,
                             style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14)),

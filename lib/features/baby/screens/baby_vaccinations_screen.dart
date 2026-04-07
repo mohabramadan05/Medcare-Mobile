@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
@@ -24,6 +25,7 @@ class BabyVaccinationsScreen extends ConsumerWidget {
   }
 
   Future<void> _addVaccination(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context);
     final nameCtrl = TextEditingController();
     final doseCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
@@ -45,30 +47,31 @@ class BabyVaccinationsScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Add Vaccination',
-                  style: TextStyle(
+              Text(l.addVaccination,
+                  style: const TextStyle(
                       fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               TextField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Vaccine Name *')),
+                  decoration: InputDecoration(
+                      labelText: l.vaccineName)),
               const SizedBox(height: 12),
               TextField(
                   controller: doseCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Dose (e.g. 1st)')),
+                  decoration: InputDecoration(
+                      labelText: l.dose)),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: status,
-                decoration:
-                    const InputDecoration(labelText: 'Status'),
-                items: ['upcoming', 'completed', 'missed']
-                    .map((s) => DropdownMenuItem(
-                        value: s,
-                        child: Text(s[0].toUpperCase() +
-                            s.substring(1))))
-                    .toList(),
+                decoration: InputDecoration(labelText: l.status),
+                items: [
+                  DropdownMenuItem(
+                      value: 'upcoming', child: Text(l.statusUpcoming)),
+                  DropdownMenuItem(
+                      value: 'completed', child: Text(l.statusCompleted)),
+                  DropdownMenuItem(
+                      value: 'missed', child: Text(l.statusMissed)),
+                ],
                 onChanged: (v) => setS(() => status = v!),
               ),
               const SizedBox(height: 12),
@@ -85,7 +88,7 @@ class BabyVaccinationsScreen extends ConsumerWidget {
                 icon: const Icon(Icons.calendar_today, size: 16),
                 label: Text(vaccineDate != null
                     ? 'Given: ${DateFormat('MMM dd, yyyy').format(vaccineDate!)}'
-                    : 'Set Vaccine Date'),
+                    : l.setVaccineDate),
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
@@ -101,14 +104,13 @@ class BabyVaccinationsScreen extends ConsumerWidget {
                 icon: const Icon(Icons.event, size: 16),
                 label: Text(dueDate != null
                     ? 'Due: ${DateFormat('MMM dd, yyyy').format(dueDate!)}'
-                    : 'Set Due Date'),
+                    : l.setDueDate),
               ),
               const SizedBox(height: 12),
               TextField(
                   controller: notesCtrl,
                   maxLines: 2,
-                  decoration:
-                      const InputDecoration(labelText: 'Notes')),
+                  decoration: InputDecoration(labelText: l.notes)),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () async {
@@ -139,8 +141,8 @@ class BabyVaccinationsScreen extends ConsumerWidget {
                     if (context.mounted) {
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Vaccination added!'),
+                          SnackBar(
+                              content: Text(l.vaccinationAdded),
                               backgroundColor:
                                   AppTheme.healthGreen));
                     }
@@ -153,7 +155,7 @@ class BabyVaccinationsScreen extends ConsumerWidget {
                     }
                   }
                 },
-                child: const Text('Save'),
+                child: Text(l.save),
               ),
             ],
           ),
@@ -164,9 +166,10 @@ class BabyVaccinationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final vacsAsync = ref.watch(babyVaccinationsProvider(babyId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Vaccinations')),
+      appBar: AppBar(title: Text(l.vaccinations)),
       body: vacsAsync.when(
         loading: () => const LoadingWidget(),
         error: (e, _) => AppErrorWidget(
@@ -175,11 +178,10 @@ class BabyVaccinationsScreen extends ConsumerWidget {
                 ref.invalidate(babyVaccinationsProvider(babyId))),
         data: (vacs) {
           if (vacs.isEmpty) {
-            return const EmptyStateWidget(
+            return EmptyStateWidget(
                 icon: Icons.vaccines,
-                title: 'No vaccinations recorded',
-                subtitle:
-                    'Track your baby\'s vaccination schedule');
+                title: l.noVaccinations,
+                subtitle: l.trackVaccinations);
           }
           final grouped = <String, List<dynamic>>{
             'upcoming':
@@ -244,14 +246,14 @@ class BabyVaccinationsScreen extends ConsumerWidget {
                                                 FontWeight.w600,
                                             fontSize: 14)),
                                     if (v.dose != null)
-                                      Text('Dose: ${v.dose}',
+                                      Text('${l.doseLabel}${v.dose}',
                                           style: const TextStyle(
                                               fontSize: 12,
                                               color: AppTheme
                                                   .textSecondary)),
                                     if (v.dueDate != null)
                                       Text(
-                                          'Due: ${DateFormat('MMM dd, yyyy').format(v.dueDate!)}',
+                                          '${l.dueLabel}${DateFormat('MMM dd, yyyy').format(v.dueDate!)}',
                                           style: const TextStyle(
                                               fontSize: 12,
                                               color: AppTheme

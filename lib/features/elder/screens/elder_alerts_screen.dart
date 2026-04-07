@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
@@ -13,9 +14,10 @@ class ElderAlertsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final alertsAsync = ref.watch(elderAlertsProvider(elderId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Alerts')),
+      appBar: AppBar(title: Text(l.alerts)),
       body: alertsAsync.when(
         loading: () => const LoadingWidget(),
         error: (e, _) => AppErrorWidget(
@@ -23,10 +25,10 @@ class ElderAlertsScreen extends ConsumerWidget {
             onRetry: () => ref.invalidate(elderAlertsProvider(elderId))),
         data: (alerts) {
           if (alerts.isEmpty) {
-            return const EmptyStateWidget(
+            return EmptyStateWidget(
                 icon: Icons.notifications_none,
-                title: 'No alerts',
-                subtitle: 'Elder monitoring alerts will appear here');
+                title: l.noAlerts,
+                subtitle: l.elderAlertsSubtitle);
           }
           return ListView.separated(
             padding: const EdgeInsets.all(16),
@@ -57,7 +59,7 @@ class ElderAlertsScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(a.detectedObject ?? 'Alert detected',
+                        Text(a.detectedObject ?? l.alertDetected,
                             style: const TextStyle(
                                 fontWeight: FontWeight.w600, fontSize: 14)),
                         Text(

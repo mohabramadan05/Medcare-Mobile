@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
@@ -21,6 +22,7 @@ class ElderHealthRecordsScreen extends ConsumerWidget {
   }
 
   Future<void> _add(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context);
     final nameCtrl = TextEditingController();
     final typeCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
@@ -42,40 +44,38 @@ class ElderHealthRecordsScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Add Health Record',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(l.addHealthRecord,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               TextField(
                   controller: nameCtrl,
                   decoration:
-                      const InputDecoration(labelText: 'Condition / Record Name *')),
+                      InputDecoration(labelText: l.conditionName)),
               const SizedBox(height: 12),
               TextField(
                   controller: typeCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Type (e.g. Chronic, Acute)')),
+                  decoration: InputDecoration(
+                      labelText: l.recordType)),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: severity,
-                decoration: const InputDecoration(labelText: 'Severity'),
-                items: ['mild', 'moderate', 'severe']
-                    .map((s) => DropdownMenuItem(
-                        value: s,
-                        child:
-                            Text(s[0].toUpperCase() + s.substring(1))))
-                    .toList(),
+                decoration: InputDecoration(labelText: l.severity),
+                items: [
+                  DropdownMenuItem(value: 'mild', child: Text(l.severityMild)),
+                  DropdownMenuItem(value: 'moderate', child: Text(l.severityModerate)),
+                  DropdownMenuItem(value: 'severe', child: Text(l.severitySevere)),
+                ],
                 onChanged: (v) => setS(() => severity = v!),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: status,
-                decoration: const InputDecoration(labelText: 'Status'),
-                items: ['active', 'resolved', 'monitoring']
-                    .map((s) => DropdownMenuItem(
-                        value: s,
-                        child:
-                            Text(s[0].toUpperCase() + s.substring(1))))
-                    .toList(),
+                decoration: InputDecoration(labelText: l.status),
+                items: [
+                  DropdownMenuItem(value: 'active', child: Text(l.statusActive)),
+                  DropdownMenuItem(value: 'resolved', child: Text(l.statusResolved)),
+                  DropdownMenuItem(value: 'monitoring', child: Text(l.statusMonitoring)),
+                ],
                 onChanged: (v) => setS(() => status = v!),
               ),
               const SizedBox(height: 12),
@@ -91,13 +91,13 @@ class ElderHealthRecordsScreen extends ConsumerWidget {
                 icon: const Icon(Icons.calendar_today, size: 16),
                 label: Text(recordDate != null
                     ? DateFormat('MMM dd, yyyy').format(recordDate!)
-                    : 'Set Date'),
+                    : l.setDateBtn),
               ),
               const SizedBox(height: 12),
               TextField(
                   controller: notesCtrl,
                   maxLines: 2,
-                  decoration: const InputDecoration(labelText: 'Notes')),
+                  decoration: InputDecoration(labelText: l.notes)),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () async {
@@ -125,8 +125,8 @@ class ElderHealthRecordsScreen extends ConsumerWidget {
                     if (context.mounted) {
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Record added!'),
+                          SnackBar(
+                              content: Text(l.recordAddedSuccess),
                               backgroundColor: AppTheme.healthGreen));
                     }
                   } catch (e) {
@@ -137,7 +137,7 @@ class ElderHealthRecordsScreen extends ConsumerWidget {
                     }
                   }
                 },
-                child: const Text('Save'),
+                child: Text(l.save),
               ),
             ],
           ),
@@ -148,9 +148,10 @@ class ElderHealthRecordsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final recordsAsync = ref.watch(elderHealthRecordsProvider(elderId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Health Records')),
+      appBar: AppBar(title: Text(l.healthRecords)),
       body: recordsAsync.when(
         loading: () => const LoadingWidget(),
         error: (e, _) => AppErrorWidget(
@@ -159,14 +160,14 @@ class ElderHealthRecordsScreen extends ConsumerWidget {
                 ref.invalidate(elderHealthRecordsProvider(elderId))),
         data: (records) {
           if (records.isEmpty) {
-            return const EmptyStateWidget(
+            return EmptyStateWidget(
                 icon: Icons.folder_special,
-                title: 'No health records',
-                subtitle: 'Add health conditions and medical records');
+                title: l.noHealthRecords,
+                subtitle: l.addHealthConditions);
           }
           final grouped = <String, List<dynamic>>{};
           for (final r in records) {
-            final key = r.recordType ?? 'General';
+            final key = r.recordType ?? l.general;
             grouped.putIfAbsent(key, () => []).add(r);
           }
           return ListView(

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
@@ -53,6 +54,7 @@ class ConversationsScreen extends ConsumerWidget {
   }
 
   void _showDoctorsList(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -79,9 +81,9 @@ class ConversationsScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 8, 0),
               child: Row(children: [
-                const Text('Find a Doctor',
+                Text(l.findDoctor,
                     style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const Spacer(),
                 IconButton(
                     icon: const Icon(Icons.close_rounded),
@@ -153,8 +155,8 @@ class ConversationsScreen extends ConsumerWidget {
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10)),
                             ),
-                            child: const Text('Message',
-                                style: TextStyle(fontSize: 13)),
+                            child: Text(l.message,
+                                style: const TextStyle(fontSize: 13)),
                           ),
                         ]),
                       );
@@ -171,9 +173,10 @@ class ConversationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final convsAsync = ref.watch(conversationsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Messages')),
+      appBar: AppBar(title: Text(l.messagesTitle)),
       body: convsAsync.when(
         loading: () => const LoadingWidget(),
         error: (e, _) => AppErrorWidget(
@@ -183,12 +186,12 @@ class ConversationsScreen extends ConsumerWidget {
           if (convs.isEmpty) {
             return EmptyStateWidget(
               icon: Icons.chat_bubble_outline_rounded,
-              title: 'No conversations yet',
-              subtitle: 'Start a conversation with a doctor',
+              title: l.noConversations,
+              subtitle: l.startConversation,
               action: ElevatedButton.icon(
                 onPressed: () => _showDoctorsList(context, ref),
                 icon: const Icon(Icons.search_rounded, size: 18),
-                label: const Text('Find a Doctor'),
+                label: Text(l.findDoctor),
                 style:
                     ElevatedButton.styleFrom(minimumSize: const Size(200, 48)),
               ),

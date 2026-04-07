@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../providers/elder_provider.dart';
@@ -12,6 +13,7 @@ class ElderDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final elderAsync = ref.watch(elderDetailProvider(elderId));
     return elderAsync.when(
       loading: () => const Scaffold(body: LoadingWidget()),
@@ -19,8 +21,8 @@ class ElderDetailScreen extends ConsumerWidget {
           Scaffold(body: AppErrorWidget(message: e.toString())),
       data: (elder) {
         if (elder == null) {
-          return const Scaffold(
-              body: Center(child: Text('Elder not found')));
+          return Scaffold(
+              body: Center(child: Text(l.elderNotFound)));
         }
         return Scaffold(
           body: CustomScrollView(
@@ -105,7 +107,7 @@ class ElderDetailScreen extends ConsumerWidget {
                               if (elder.age != null)
                                 _InfoChip(
                                     label:
-                                        '${elder.age} years old'),
+                                        '${elder.age} ${l.yearsOld}'),
                               if (elder.bloodType != null)
                                 _InfoChip(
                                     label: elder.bloodType!),
@@ -130,34 +132,40 @@ class ElderDetailScreen extends ConsumerWidget {
                   delegate: SliverChildListDelegate([
                     _FeatureCard(
                         icon: Icons.monitor_heart,
-                        label: 'Vitals',
+                        label: l.vitals,
                         color: AppTheme.error,
                         onTap: () => context
                             .push('/elders/$elderId/vitals')),
                     _FeatureCard(
                         icon: Icons.medication,
-                        label: 'Medications',
+                        label: l.medications,
                         color: AppTheme.warning,
                         onTap: () => context
                             .push('/elders/$elderId/medications')),
                     _FeatureCard(
                         icon: Icons.folder_special,
-                        label: 'Health Records',
+                        label: l.healthRecords,
                         color: AppTheme.primary,
                         onTap: () => context.push(
                             '/elders/$elderId/health-records')),
                     _FeatureCard(
                         icon: Icons.notifications_active,
-                        label: 'Alerts',
+                        label: l.alerts,
                         color: AppTheme.error,
                         onTap: () => context
                             .push('/elders/$elderId/alerts')),
                     _FeatureCard(
                         icon: Icons.security,
-                        label: 'Safety Info',
+                        label: l.safetyInfo,
                         color: AppTheme.healthGreen,
                         onTap: () => context
                             .push('/elders/$elderId/safety')),
+                    _FeatureCard(
+                        icon: Icons.monitor_heart_rounded,
+                        label: l.monitoring,
+                        color: AppTheme.primary,
+                        onTap: () => context.push(
+                            '/elders/$elderId/monitoring?name=${Uri.encodeComponent(elder.fullName)}&code=${Uri.encodeComponent(elder.patientCode)}')),
                   ]),
                 ),
               ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
@@ -13,9 +14,10 @@ class BabiesListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final babiesAsync = ref.watch(userBabiesProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('My Babies')),
+      appBar: AppBar(title: Text(l.myBabiesTitle)),
       body: babiesAsync.when(
         loading: () => const LoadingWidget(),
         error: (e, _) => AppErrorWidget(
@@ -26,12 +28,12 @@ class BabiesListScreen extends ConsumerWidget {
           if (babies.isEmpty) {
             return EmptyStateWidget(
               icon: Icons.child_care,
-              title: 'No babies yet',
-              subtitle: 'Add your first baby to start tracking their health',
+              title: l.noBabiesYet,
+              subtitle: l.noBabiesSubtitle,
               action: ElevatedButton.icon(
                 onPressed: () => context.push('/babies/add'),
                 icon: const Icon(Icons.add),
-                label: const Text('Add Baby'),
+                label: Text(l.addBaby),
               ),
             );
           }

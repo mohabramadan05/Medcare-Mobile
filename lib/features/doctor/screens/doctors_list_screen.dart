@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
@@ -50,9 +51,10 @@ class DoctorsListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final doctorsAsync = ref.watch(doctorsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Find a Doctor')),
+      appBar: AppBar(title: Text(l.findDoctorTitle)),
       body: doctorsAsync.when(
         loading: () => const LoadingWidget(),
         error: (e, _) => AppErrorWidget(
@@ -60,10 +62,10 @@ class DoctorsListScreen extends ConsumerWidget {
             onRetry: () => ref.invalidate(doctorsProvider)),
         data: (doctors) {
           if (doctors.isEmpty) {
-            return const EmptyStateWidget(
+            return EmptyStateWidget(
                 icon: Icons.person_search,
-                title: 'No doctors available',
-                subtitle: 'Doctors will appear here once registered');
+                title: l.noDoctors,
+                subtitle: l.noDoctorsSubtitle);
           }
           return ListView.separated(
             padding: const EdgeInsets.all(16),
@@ -133,7 +135,7 @@ class DoctorsListScreen extends ConsumerWidget {
                               color: AppTheme.textSecondary),
                           const SizedBox(width: 4),
                           Text(
-                              '${d.doctorYearsExperience} yrs exp',
+                              '${d.doctorYearsExperience} ${l.yrsExp}',
                               style: const TextStyle(
                                   fontSize: 12,
                                   color: AppTheme.textSecondary)),
@@ -145,7 +147,7 @@ class DoctorsListScreen extends ConsumerWidget {
                               color: AppTheme.textSecondary),
                           const SizedBox(width: 4),
                           Text(
-                              '${d.doctorResponseRate!.toStringAsFixed(0)}% response',
+                              '${d.doctorResponseRate!.toStringAsFixed(0)}${l.responseRate}',
                               style: const TextStyle(
                                   fontSize: 12,
                                   color: AppTheme.textSecondary)),
@@ -196,7 +198,7 @@ class DoctorsListScreen extends ConsumerWidget {
                             _message(context, ref, d.id, d.fullName),
                         icon: const Icon(Icons.message_outlined,
                             size: 16),
-                        label: const Text('Message'),
+                        label: Text(l.message),
                       ),
                     ),
                   ],

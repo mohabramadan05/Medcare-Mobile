@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
@@ -13,14 +14,15 @@ class BabyDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final babyAsync = ref.watch(babyDetailProvider(babyId));
     return babyAsync.when(
       loading: () => const Scaffold(body: LoadingWidget()),
       error: (e, _) => Scaffold(body: AppErrorWidget(message: e.toString())),
       data: (baby) {
         if (baby == null) {
-          return const Scaffold(
-              body: Center(child: Text('Baby not found')));
+          return Scaffold(
+              body: Center(child: Text(l.babyNotFound)));
         }
         return Scaffold(
           body: CustomScrollView(
@@ -117,34 +119,40 @@ class BabyDetailScreen extends ConsumerWidget {
                   delegate: SliverChildListDelegate([
                     _FeatureCard(
                         icon: Icons.show_chart,
-                        label: 'Growth Chart',
+                        label: l.growthChart,
                         color: AppTheme.healthGreen,
                         onTap: () =>
                             context.push('/babies/$babyId/growth')),
                     _FeatureCard(
                         icon: Icons.vaccines,
-                        label: 'Vaccinations',
+                        label: l.vaccinations,
                         color: AppTheme.primary,
                         onTap: () => context
                             .push('/babies/$babyId/vaccinations')),
                     _FeatureCard(
                         icon: Icons.schedule,
-                        label: 'Daily Routine',
+                        label: l.dailyRoutine,
                         color: AppTheme.elderAccent,
                         onTap: () =>
                             context.push('/babies/$babyId/routine')),
                     _FeatureCard(
                         icon: Icons.medication,
-                        label: 'Medicines',
+                        label: l.medicines,
                         color: AppTheme.warning,
                         onTap: () =>
                             context.push('/babies/$babyId/medicines')),
                     _FeatureCard(
                         icon: Icons.notifications_active,
-                        label: 'Alerts',
+                        label: l.alerts,
                         color: AppTheme.error,
                         onTap: () =>
                             context.push('/babies/$babyId/alerts')),
+                    _FeatureCard(
+                        icon: Icons.monitor_heart_rounded,
+                        label: l.monitoring,
+                        color: AppTheme.healthGreen,
+                        onTap: () => context.push(
+                            '/babies/$babyId/monitoring?name=${Uri.encodeComponent(baby.name)}&code=${Uri.encodeComponent(baby.patientCode)}')),
                   ]),
                 ),
               ),

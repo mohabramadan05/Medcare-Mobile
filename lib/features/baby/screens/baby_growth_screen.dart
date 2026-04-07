@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
@@ -14,6 +15,7 @@ class BabyGrowthScreen extends ConsumerWidget {
   const BabyGrowthScreen({super.key, required this.babyId});
 
   Future<void> _addRecord(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context);
     final weightCtrl = TextEditingController();
     final lengthCtrl = TextEditingController();
     DateTime? selectedDate;
@@ -32,8 +34,8 @@ class BabyGrowthScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Add Growth Record',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(l.addGrowthRecord,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: () async {
@@ -48,25 +50,25 @@ class BabyGrowthScreen extends ConsumerWidget {
                 icon: const Icon(Icons.calendar_today, size: 16),
                 label: Text(selectedDate != null
                     ? DateFormat('MMM dd, yyyy').format(selectedDate!)
-                    : 'Select Date *'),
+                    : l.selectDate),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: weightCtrl,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                    labelText: 'Weight (kg)',
-                    prefixIcon: Icon(Icons.monitor_weight_outlined)),
+                decoration: InputDecoration(
+                    labelText: l.weightKg,
+                    prefixIcon: const Icon(Icons.monitor_weight_outlined)),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: lengthCtrl,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                    labelText: 'Length (cm)',
-                    prefixIcon: Icon(Icons.straighten)),
+                decoration: InputDecoration(
+                    labelText: l.lengthCm,
+                    prefixIcon: const Icon(Icons.straighten)),
               ),
               const SizedBox(height: 16),
               ElevatedButton(
@@ -89,8 +91,8 @@ class BabyGrowthScreen extends ConsumerWidget {
                     if (context.mounted) {
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Record added!'),
+                        SnackBar(
+                            content: Text(l.recordAdded),
                             backgroundColor: AppTheme.healthGreen),
                       );
                     }
@@ -102,7 +104,7 @@ class BabyGrowthScreen extends ConsumerWidget {
                     }
                   }
                 },
-                child: const Text('Save Record'),
+                child: Text(l.saveRecord),
               ),
             ],
           ),
@@ -113,9 +115,10 @@ class BabyGrowthScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final growthAsync = ref.watch(babyGrowthProvider(babyId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Growth Chart')),
+      appBar: AppBar(title: Text(l.growthChart)),
       body: growthAsync.when(
         loading: () => const LoadingWidget(),
         error: (e, _) => AppErrorWidget(
@@ -123,10 +126,10 @@ class BabyGrowthScreen extends ConsumerWidget {
             onRetry: () => ref.invalidate(babyGrowthProvider(babyId))),
         data: (records) {
           if (records.isEmpty) {
-            return const EmptyStateWidget(
+            return EmptyStateWidget(
                 icon: Icons.show_chart,
-                title: 'No growth records',
-                subtitle: 'Add the first growth measurement');
+                title: l.noGrowthRecords,
+                subtitle: l.addFirstGrowth);
           }
           final weightSpots = records
               .asMap()
@@ -216,14 +219,14 @@ class BabyGrowthScreen extends ConsumerWidget {
                   )),
                 ),
                 const SizedBox(height: 12),
-                const Row(children: [
-                  _Legend(color: AppTheme.healthGreen, label: 'Weight (kg)'),
-                  SizedBox(width: 16),
-                  _Legend(color: AppTheme.primary, label: 'Length (cm)'),
+                Row(children: [
+                  _Legend(color: AppTheme.healthGreen, label: l.weightKg),
+                  const SizedBox(width: 16),
+                  _Legend(color: AppTheme.primary, label: l.lengthCm),
                 ]),
                 const SizedBox(height: 20),
-                const Text('Records',
-                    style: TextStyle(
+                Text(l.records,
+                    style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: AppTheme.textPrimary)),

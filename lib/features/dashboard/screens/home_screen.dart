@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/stat_card.dart';
 import '../../auth/providers/auth_provider.dart';
+import 'main_shell.dart';
 import '../../baby/providers/baby_provider.dart';
 import '../../elder/providers/elder_provider.dart';
 import '../../appointments/providers/appointments_provider.dart';
@@ -25,9 +27,10 @@ class HomeScreen extends ConsumerWidget {
 
     return profileAsync.when(
       loading: () => const Scaffold(body: LoadingWidget()),
-      error: (e, _) => const Scaffold(
-          body: Center(child: Text('Error loading profile'))),
+      error: (e, _) => Scaffold(
+          body: Center(child: Text(AppLocalizations.of(context).errorLoadingProfile))),
       data: (profile) {
+        final l = AppLocalizations.of(context);
         final isDoctor = profile?.role == 'doctor';
         final name = profile?.fullName ?? 'Welcome';
         final initials = name.trim().isNotEmpty
@@ -74,7 +77,7 @@ class HomeScreen extends ConsumerWidget {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          '${_greeting()} 👋',
+                                          '${_greeting(context)} 👋',
                                           style: TextStyle(
                                               color: Colors.white
                                                   .withValues(alpha: 0.8),
@@ -132,8 +135,8 @@ class HomeScreen extends ConsumerWidget {
                                     const SizedBox(width: 5),
                                     Text(
                                       isDoctor
-                                          ? 'Doctor Dashboard'
-                                          : 'Your health, our care',
+                                          ? l.doctorDashboard
+                                          : l.yourHealthOurCare,
                                       style: TextStyle(
                                           color: Colors.white
                                               .withValues(alpha: 0.9),
@@ -149,6 +152,8 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
                   actions: [
+                    const LangToggleButton(),
+                    const SizedBox(width: 4),
                     IconButton(
                       icon: Container(
                         padding: const EdgeInsets.all(6),
@@ -187,11 +192,12 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  String _greeting() {
+  String _greeting(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final h = DateTime.now().hour;
-    if (h < 12) return 'Good Morning';
-    if (h < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    if (h < 12) return l.goodMorning;
+    if (h < 17) return l.goodAfternoon;
+    return l.goodEvening;
   }
 }
 
@@ -217,6 +223,7 @@ class _UserHomeContent extends ConsumerWidget {
         upcomingAsync.whenOrNull(data: (d) => d) ?? <AppointmentModel>[];
     final upcoming =
         all.where((a) => a.status == 'upcoming').toList();
+    final l = AppLocalizations.of(context);
 
     return SliverList(
       delegate: SliverChildListDelegate([
@@ -232,25 +239,25 @@ class _UserHomeContent extends ConsumerWidget {
                 children: [
                   _QuickAction(
                     icon: Icons.child_care_rounded,
-                    label: 'Babies',
+                    label: l.myBabies,
                     color: AppTheme.babyAccent,
                     onTap: () => context.push('/babies'),
                   ),
                   _QuickAction(
                     icon: Icons.elderly_rounded,
-                    label: 'Elders',
+                    label: l.myElders,
                     color: AppTheme.elderAccent,
                     onTap: () => context.push('/elders'),
                   ),
                   _QuickAction(
                     icon: Icons.calendar_month_rounded,
-                    label: 'Schedule',
+                    label: l.schedule,
                     color: AppTheme.primary,
                     onTap: () => context.go('/appointments'),
                   ),
                   _QuickAction(
                     icon: Icons.search_rounded,
-                    label: 'Doctors',
+                    label: l.doctors,
                     color: AppTheme.healthGreen,
                     onTap: () => context.push('/doctors'),
                   ),
@@ -263,7 +270,7 @@ class _UserHomeContent extends ConsumerWidget {
                 Expanded(
                   child: StatCard(
                     icon: Icons.child_care_rounded,
-                    label: 'Babies',
+                    label: l.myBabies,
                     value: '${babies.length}',
                     color: AppTheme.babyAccent,
                     onTap: () => context.push('/babies'),
@@ -273,7 +280,7 @@ class _UserHomeContent extends ConsumerWidget {
                 Expanded(
                   child: StatCard(
                     icon: Icons.elderly_rounded,
-                    label: 'Elders',
+                    label: l.myElders,
                     value: '${elders.length}',
                     color: AppTheme.elderAccent,
                     onTap: () => context.push('/elders'),
@@ -283,7 +290,7 @@ class _UserHomeContent extends ConsumerWidget {
                 Expanded(
                   child: StatCard(
                     icon: Icons.event_available_rounded,
-                    label: 'Upcoming',
+                    label: l.upcoming,
                     value: '${upcoming.length}',
                     color: AppTheme.primary,
                     onTap: () => context.go('/appointments'),
@@ -294,14 +301,14 @@ class _UserHomeContent extends ConsumerWidget {
 
               // ── My Babies ─────────────────────────────────────
               _SectionHeader(
-                title: 'My Babies',
+                title: l.myBabies,
                 onSeeAll: () => context.push('/babies'),
                 onAdd: () => context.push('/babies/add'),
               ),
               const SizedBox(height: 12),
               if (babies.isEmpty)
                 _EmptyCard(
-                  message: 'No babies added yet. Tap + to add one.',
+                  message: l.noBabiesAdded,
                   onAdd: () => context.push('/babies/add'),
                   color: AppTheme.babyAccent,
                 )
@@ -330,14 +337,14 @@ class _UserHomeContent extends ConsumerWidget {
 
               // ── My Elders ─────────────────────────────────────
               _SectionHeader(
-                title: 'My Elders',
+                title: l.myElders,
                 onSeeAll: () => context.push('/elders'),
                 onAdd: () => context.push('/elders/add'),
               ),
               const SizedBox(height: 12),
               if (elders.isEmpty)
                 _EmptyCard(
-                  message: 'No elders added yet. Tap + to add one.',
+                  message: l.noEldersAdded,
                   onAdd: () => context.push('/elders/add'),
                   color: AppTheme.elderAccent,
                 )
@@ -356,8 +363,8 @@ class _UserHomeContent extends ConsumerWidget {
                         child: _PatientCard(
                           name: e.fullName,
                           subtitle: e.age != null
-                              ? '${e.age} years old'
-                              : 'Elder',
+                              ? '${e.age} ${l.yearsOld}'
+                              : l.myElders,
                           color: AppTheme.elderAccent,
                         ),
                       );
@@ -368,7 +375,7 @@ class _UserHomeContent extends ConsumerWidget {
 
               // ── Upcoming Appointments ─────────────────────────
               _SectionHeader(
-                title: 'Upcoming Appointments',
+                title: l.upcomingAppointments,
                 onSeeAll: () => context.go('/appointments'),
                 onAdd: () => context.push('/appointments/add'),
               ),
@@ -393,17 +400,17 @@ class _UserHomeContent extends ConsumerWidget {
                           color: AppTheme.primary, size: 22),
                     ),
                     const SizedBox(width: 14),
-                    const Column(
+                    Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('No upcoming appointments',
-                            style: TextStyle(
+                        Text(l.noUpcomingAppointments,
+                            style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
                                 color: AppTheme.textPrimary)),
-                        SizedBox(height: 2),
-                        Text('Tap + to schedule one',
-                            style: TextStyle(
+                        const SizedBox(height: 2),
+                        Text(l.tapToSchedule,
+                            style: const TextStyle(
                                 fontSize: 12,
                                 color: AppTheme.textSecondary)),
                       ],
@@ -443,16 +450,16 @@ class _DoctorHomeContent extends ConsumerWidget {
                     color: AppTheme.primary, size: 40),
               ),
               const SizedBox(height: 20),
-              const Text('Doctor Dashboard',
-                  style: TextStyle(
+              Text(AppLocalizations.of(context).doctorDashboard,
+                  style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.textPrimary)),
               const SizedBox(height: 8),
-              const Text(
-                  'View and respond to patient conversations in the Chat tab.',
+              Text(
+                  AppLocalizations.of(context).viewAndRespondDoctors,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 14,
                       height: 1.5)),
@@ -460,7 +467,7 @@ class _DoctorHomeContent extends ConsumerWidget {
               ElevatedButton.icon(
                 onPressed: () => context.go('/chat'),
                 icon: const Icon(Icons.chat_bubble_rounded, size: 18),
-                label: const Text('View Conversations'),
+                label: Text(AppLocalizations.of(context).viewConversations),
               ),
             ],
           ),

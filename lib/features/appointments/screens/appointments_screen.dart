@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
@@ -14,16 +15,17 @@ class AppointmentsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     return DefaultTabController(
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Appointments'),
-          bottom: const TabBar(
+          title: Text(l.appointmentsTitle),
+          bottom: TabBar(
             tabs: [
-              Tab(text: 'Upcoming'),
-              Tab(text: 'Completed'),
-              Tab(text: 'Cancelled'),
+              Tab(text: l.tabUpcoming),
+              Tab(text: l.tabCompleted),
+              Tab(text: l.tabCancelled),
             ],
           ),
           actions: [
@@ -32,7 +34,7 @@ class AppointmentsScreen extends ConsumerWidget {
               child: FilledButton.icon(
                 onPressed: () => context.push('/appointments/add'),
                 icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('New'),
+                label: Text(l.newAppointment),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 14, vertical: 8),
@@ -56,6 +58,7 @@ class _AppointmentTabs extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final appsAsync = ref.watch(appointmentsProvider);
     return appsAsync.when(
       loading: () => const LoadingWidget(),
@@ -70,20 +73,20 @@ class _AppointmentTabs extends ConsumerWidget {
           children: [
             _AppointmentList(
               appointments: upcoming,
-              emptyTitle: 'No upcoming appointments',
-              emptySubtitle: 'Tap "New" to schedule one',
+              emptyTitle: l.noUpcoming,
+              emptySubtitle: l.noUpcomingSubtitle,
               onRefresh: () async => ref.invalidate(appointmentsProvider),
             ),
             _AppointmentList(
               appointments: completed,
-              emptyTitle: 'No completed appointments',
-              emptySubtitle: 'Completed appointments will appear here',
+              emptyTitle: l.noCompleted,
+              emptySubtitle: l.noCompletedSubtitle,
               onRefresh: () async => ref.invalidate(appointmentsProvider),
             ),
             _AppointmentList(
               appointments: cancelled,
-              emptyTitle: 'No cancelled appointments',
-              emptySubtitle: 'Cancelled appointments will appear here',
+              emptyTitle: l.noCancelled,
+              emptySubtitle: l.noCancelledSubtitle,
               onRefresh: () async => ref.invalidate(appointmentsProvider),
             ),
           ],
@@ -130,6 +133,7 @@ class _AppointmentList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     if (appointments.isEmpty) {
       return EmptyStateWidget(
           icon: Icons.calendar_month_outlined,
@@ -210,7 +214,7 @@ class _AppointmentList extends StatelessWidget {
                         const SizedBox(height: 8),
                         // Appointment type
                         Text(
-                          a.appointmentType ?? 'General Consultation',
+                          a.appointmentType ?? l.generalConsultation,
                           style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/localization/app_localizations.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -58,6 +59,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
@@ -81,36 +83,31 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Center(
-                  child: Text('Create Account',
-                      style: TextStyle(
-                          fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
-                ),
+                Center(child: Text(l.createAccount,
+                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.textPrimary))),
                 const SizedBox(height: 8),
-                const Center(
-                  child: Text('Join MedCare today',
-                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 15)),
-                ),
+                Center(child: Text(l.joinToday,
+                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 15))),
                 const SizedBox(height: 32),
                 TextFormField(
                   controller: _nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name',
-                    prefixIcon: Icon(Icons.person_outlined),
+                  decoration: InputDecoration(
+                    labelText: l.fullName,
+                    prefixIcon: const Icon(Icons.person_outlined),
                   ),
-                  validator: (v) => v == null || v.isEmpty ? 'Name is required' : null,
+                  validator: (v) => v == null || v.isEmpty ? l.nameRequired : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
+                  decoration: InputDecoration(
+                    labelText: l.email,
+                    prefixIcon: const Icon(Icons.email_outlined),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Email is required';
-                    if (!v.contains('@')) return 'Enter a valid email';
+                    if (v == null || v.isEmpty) return l.emailRequired;
+                    if (!v.contains('@')) return l.emailInvalid;
                     return null;
                   },
                 ),
@@ -119,17 +116,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   controller: _passwordCtrl,
                   obscureText: _obscure,
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                    labelText: l.password,
                     prefixIcon: const Icon(Icons.lock_outlined),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                          _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                      icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Password is required';
-                    if (v.length < 6) return 'Minimum 6 characters';
+                    if (v == null || v.isEmpty) return l.passwordRequired;
+                    if (v.length < 6) return l.passwordMin;
                     return null;
                   },
                 ),
@@ -137,23 +133,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ElevatedButton(
                   onPressed: _loading ? null : _register,
                   child: _loading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
+                      ? const SizedBox(width: 20, height: 20,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Create Account'),
+                      : Text(l.createAccount),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('Already have an account? ',
-                        style: TextStyle(color: AppTheme.textSecondary)),
+                    Text(l.hasAccount, style: const TextStyle(color: AppTheme.textSecondary)),
                     GestureDetector(
                       onTap: () => context.go('/login'),
-                      child: const Text('Sign In',
-                          style:
-                              TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w600)),
+                      child: Text(l.signIn,
+                          style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
