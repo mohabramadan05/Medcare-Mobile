@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/localization/app_localizations.dart';
+import '../../../core/services/biometric_service.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -22,9 +23,28 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Future<void> _redirect() async {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
+
     final session = Supabase.instance.client.auth.currentSession;
+
     if (session != null) {
-      context.go('/home');
+      // If biometric lock is enabled, require a scan before entering the app.
+      final available = await BiometricService.isAvailable();
+      final hasCredentials = available && await BiometricService.hasCredentials();
+      if (!mounted) return;
+
+      if (hasCredentials) {
+        final l = AppLocalizations.of(context);
+        final authenticated = await BiometricService.authenticate(l.biometricReason);
+        if (!mounted) return;
+        if (authenticated) {
+          context.go('/home');
+        } else {
+          // Failed / cancelled — fall back to login screen.
+          context.go('/login');
+        }
+      } else {
+        context.go('/home');
+      }
     } else {
       context.go('/login');
     }

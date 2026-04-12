@@ -152,6 +152,7 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
                   actions: [
+                    const BiometricToggleButton(),
                     const LangToggleButton(),
                     const SizedBox(width: 4),
                     IconButton(

@@ -297,6 +297,23 @@ class AppLocalizations {
   String get responseRate => _t('% response', '% استجابة');
   String get message => _t('Message', 'رسالة');
 
+  // ── Biometric ────────────────────────────────────────────────────────────
+  String get biometricTitle => _t('Biometric Login', 'تسجيل الدخول البيومتري');
+  String get enableBiometricTitle => _t('Enable Biometric Login', 'تفعيل تسجيل الدخول البيومتري');
+  String get enableBiometricDesc => _t(
+    'Use your fingerprint or Face ID for faster sign-in next time.',
+    'استخدم بصمة إصبعك أو Face ID لتسجيل دخول أسرع في المرة القادمة.',
+  );
+  String get enable => _t('Enable', 'تفعيل');
+  String get skip => _t('Skip', 'تخطي');
+  String get signInWithBiometric => _t('Sign in with Biometric', 'تسجيل الدخول بالبيومتري');
+  String get biometricReason => _t('Authenticate to sign in to Nesta', 'المصادقة لتسجيل الدخول إلى نيستا');
+  String get orDivider => _t('OR', 'أو');
+  String get biometricFailed => _t('Biometric authentication failed', 'فشل التحقق البيومتري');
+  String get disableBiometric => _t('Disable Biometric Login', 'تعطيل تسجيل الدخول البيومتري');
+  String get biometricEnabled => _t('Biometric login enabled', 'تم تفعيل تسجيل الدخول البيومتري');
+  String get biometricDisabled => _t('Biometric login disabled', 'تم تعطيل تسجيل الدخول البيومتري');
+
   // ── Monitoring ───────────────────────────────────────────────────────────
   String get liveFeed => _t('Live Feed', 'البث المباشر');
   String get safetyAlerts => _t('Safety Alerts', 'تنبيهات الأمان');
