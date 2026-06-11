@@ -456,7 +456,7 @@ class _HrChart extends StatelessWidget {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          getDrawingHorizontalLine: (_) => FlLine(
+          getDrawingHorizontalLine: (_) => const FlLine(
             color: AppTheme.border,
             strokeWidth: 0.8,
           ),

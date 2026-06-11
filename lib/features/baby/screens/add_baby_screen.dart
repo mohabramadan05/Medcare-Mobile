@@ -86,7 +86,7 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
       }
     } catch (e) {
       if (mounted) {
-        debugPrint("errororor " + e.toString());
+        debugPrint("errororor $e");
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Error: $e'),
           backgroundColor: AppTheme.error,
