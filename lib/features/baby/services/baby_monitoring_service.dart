@@ -1,115 +1,116 @@
 import 'dart:async';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/baby_model.dart';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DEV FALLBACK — used only when a baby has no monitor_url stored in Supabase.
-// Set this to your test server address while developing without a real Pi.
-//
-//  • Android emulator   → http://10.0.2.2:5000
-//  • Real phone on WiFi → http://<YOUR-PC-LAN-IP>:5000
-//  • ngrok              → https://<SUBDOMAIN>.ngrok-free.app
-//
-// In production each baby's Pi URL comes from Supabase (monitor_url column),
-// so you never need to change this constant once real hardware is set up.
-// ─────────────────────────────────────────────────────────────────────────────
-const String kDevServerUrl = 'http://10.0.2.2:5000';
-
-const _kHeaders = {
-  'Content-Type': 'application/json',
-  // Skips the ngrok browser-warning interstitial on the free tier.
-  // Harmless to include when not using ngrok.
-  'ngrok-skip-browser-warning': 'true',
-};
-
-// ── Vitals model ──────────────────────────────────────────────────────────────
-
-class BabyVitals {
-  final int heartRate;        // bpm
-  final double temperature;   // °C
-  final int spo2;             // %
-
-  const BabyVitals({
-    required this.heartRate,
-    required this.temperature,
-    required this.spo2,
-  });
-
-  factory BabyVitals.fromJson(Map<String, dynamic> json) => BabyVitals(
-        heartRate: json['heart_rate'] as int,
-        temperature: (json['temperature'] as num).toDouble(),
-        spo2: json['spo2'] as int,
-      );
-}
 
 // ── Service ───────────────────────────────────────────────────────────────────
 //
-// Every public method accepts an explicit [serverUrl].
-// This is the Pi's base URL for THIS baby — each baby has its own Pi,
-// each Pi has its own ngrok URL stored in Supabase.
-//
-// URL format:  https://<subdomain>.ngrok-free.app   (real Pi via ngrok)
-//              http://10.0.2.2:5000                 (test server on emulator)
+// All monitoring data comes straight from Supabase tables, keyed by patient
+// code (e.g. "B-0001"). For each we fetch the most recently created row.
 
 class BabyMonitoringService {
-  // ── One-shot fetches ──────────────────────────────────────────────────────
-
-  static Future<List<BabyAlertModel>> getAlerts(
-      String babyId, String serverUrl) async {
-    final res = await http
-        .get(
-          Uri.parse('$serverUrl/baby/$babyId/alerts'),
-          headers: _kHeaders,
-        )
-        .timeout(const Duration(seconds: 5));
-
-    if (res.statusCode != 200) {
-      throw Exception('GET /alerts -> HTTP ${res.statusCode}');
-    }
-    final list = jsonDecode(res.body) as List<dynamic>;
-    return list
-        .map((e) => BabyAlertModel.fromJson(e as Map<String, dynamic>))
-        .toList();
+  static Future<BabySensorReading?> getLatestSensorReading(
+      String patientCode) async {
+    final data = await Supabase.instance.client
+        .from('baby_sensor_readings')
+        .select()
+        .eq('patient_code', patientCode)
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle(); // null instead of throwing when no rows yet
+    if (data == null) return null;
+    return BabySensorReading.fromJson(data);
   }
 
-  static Future<BabyVitals> getVitals(
-      String babyId, String serverUrl) async {
-    final res = await http
-        .get(
-          Uri.parse('$serverUrl/baby/$babyId/vitals'),
-          headers: _kHeaders,
-        )
-        .timeout(const Duration(seconds: 5));
-
-    if (res.statusCode != 200) {
-      throw Exception('GET /vitals -> HTTP ${res.statusCode}');
-    }
-    return BabyVitals.fromJson(
-      jsonDecode(res.body) as Map<String, dynamic>,
-    );
-  }
-
-  // ── Polling streams ───────────────────────────────────────────────────────
-
-  static Stream<List<BabyAlertModel>> alertsStream(
-    String babyId,
-    String serverUrl, {
-    Duration interval = const Duration(seconds: 3),
+  /// Emits the latest sensor reading immediately, then re-checks every [interval]
+  /// (default 1 minute) for a newer record.
+  static Stream<BabySensorReading?> sensorReadingStream(
+    String patientCode, {
+    Duration interval = const Duration(minutes: 1),
   }) {
     return _pollingStream(
-      fetch: () => getAlerts(babyId, serverUrl),
+      fetch: () => getLatestSensorReading(patientCode),
       interval: interval,
     );
   }
 
-  static Stream<BabyVitals> vitalsStream(
-    String babyId,
-    String serverUrl, {
-    Duration interval = const Duration(seconds: 3),
+  /// Fetches the most recent [limit] sensor readings, newest first.
+  static Future<List<BabySensorReading>> getRecentSensorReadings(
+    String patientCode, {
+    int limit = 5,
+  }) async {
+    final data = await Supabase.instance.client
+        .from('baby_sensor_readings')
+        .select()
+        .eq('patient_code', patientCode)
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return (data as List)
+        .map((e) => BabySensorReading.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Emits the most recent [limit] sensor readings immediately, then re-checks
+  /// every [interval] (default 1 minute) for newer records.
+  static Stream<List<BabySensorReading>> recentSensorReadingsStream(
+    String patientCode, {
+    int limit = 5,
+    Duration interval = const Duration(minutes: 1),
   }) {
     return _pollingStream(
-      fetch: () => getVitals(babyId, serverUrl),
+      fetch: () => getRecentSensorReadings(patientCode, limit: limit),
+      interval: interval,
+    );
+  }
+
+  static Future<BandReading?> getLatestBandReading(String patientCode) async {
+    final data = await Supabase.instance.client
+        .from('band_readings')
+        .select()
+        .eq('patient_code', patientCode)
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle(); // null instead of throwing when no rows yet
+    if (data == null) return null;
+    return BandReading.fromJson(data);
+  }
+
+  /// Emits the latest band reading immediately, then re-checks every [interval]
+  /// (default 1 minute) for a newer record.
+  static Stream<BandReading?> bandReadingStream(
+    String patientCode, {
+    Duration interval = const Duration(minutes: 1),
+  }) {
+    return _pollingStream(
+      fetch: () => getLatestBandReading(patientCode),
+      interval: interval,
+    );
+  }
+
+  /// Fetches the most recent [limit] band readings, newest first.
+  static Future<List<BandReading>> getRecentBandReadings(
+    String patientCode, {
+    int limit = 5,
+  }) async {
+    final data = await Supabase.instance.client
+        .from('band_readings')
+        .select()
+        .eq('patient_code', patientCode)
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return (data as List)
+        .map((e) => BandReading.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Emits the most recent [limit] band readings immediately, then re-checks
+  /// every [interval] (default 1 minute) for newer records.
+  static Stream<List<BandReading>> recentBandReadingsStream(
+    String patientCode, {
+    int limit = 5,
+    Duration interval = const Duration(minutes: 1),
+  }) {
+    return _pollingStream(
+      fetch: () => getRecentBandReadings(patientCode, limit: limit),
       interval: interval,
     );
   }

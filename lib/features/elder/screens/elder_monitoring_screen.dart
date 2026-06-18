@@ -1,4 +1,3 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,6 +5,8 @@ import 'package:timeago/timeago.dart' as timeago;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../shared/widgets/loading_widget.dart';
+import '../../baby/models/baby_model.dart';
+import '../../baby/services/baby_monitoring_service.dart';
 import '../models/elder_model.dart';
 
 // ── Real-time providers ──────────────────────────────────────────────────────
@@ -32,6 +33,22 @@ final _elderAlertsStreamProvider =
       .map((data) => data.map((e) => ElderAlertModel.fromJson(e)).toList());
 });
 
+// Room sensor readings shared via the `baby_sensor_readings` table, keyed by
+// patient code. Their `alert_text` feeds the Safety Alerts list alongside
+// `elder_alerts`. Polls once a minute.
+final _sensorReadingsStreamProvider =
+    StreamProvider.family<List<BabySensorReading>, String>((ref, patientCode) {
+  return BabyMonitoringService.recentSensorReadingsStream(patientCode);
+});
+
+// Latest wearable-band reading from the `band_readings` table, keyed by patient
+// code. Drives the heart rate & SpO2 in the Daily Vitals card. Polls once a
+// minute.
+final _bandReadingStreamProvider =
+    StreamProvider.family<BandReading?, String>((ref, patientCode) {
+  return BabyMonitoringService.bandReadingStream(patientCode);
+});
+
 // ── Screen ───────────────────────────────────────────────────────────────────
 
 class ElderMonitoringScreen extends ConsumerStatefulWidget {
@@ -53,8 +70,6 @@ class ElderMonitoringScreen extends ConsumerStatefulWidget {
 
 class _ElderMonitoringScreenState
     extends ConsumerState<ElderMonitoringScreen> {
-  bool _show24h = true;
-
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
@@ -69,6 +84,37 @@ class _ElderMonitoringScreenState
         alertsAsync.whenOrNull(data: (d) => d) ?? <ElderAlertModel>[];
     final latest = vitals.isNotEmpty ? vitals.first : null;
     final isLoading = vitalsAsync.isLoading && alertsAsync.isLoading;
+
+    // Heart rate & SpO2 in the Daily Vitals card come from the wearable band
+    // (`band_readings`), keyed by patient code.
+    final band = ref
+        .watch(_bandReadingStreamProvider(widget.patientCode))
+        .whenOrNull(data: (b) => b);
+
+    // Safety alerts combine the dedicated `elder_alerts` rows with the
+    // `alert_text` of the shared room sensor readings (`baby_sensor_readings`,
+    // keyed by patient code), sorted newest first and capped at the last 5.
+    final sensorReadings =
+        ref.watch(_sensorReadingsStreamProvider(widget.patientCode)).whenOrNull(
+                  data: (d) => d,
+                ) ??
+            const <BabySensorReading>[];
+    // Newest sensor reading drives the Room Environment card (temp & humidity).
+    final latestSensor = sensorReadings.isNotEmpty ? sensorReadings.first : null;
+    final safetyAlerts = <_SafetyAlert>[
+      for (final a in alerts)
+        _SafetyAlert(label: a.detectedObject ?? l.activityDetected, time: a.alertTime),
+      for (final s in sensorReadings)
+        if (s.alertText != null && s.alertText!.trim().isNotEmpty)
+          _SafetyAlert(label: s.alertText!.trim(), time: s.measuredAt),
+    ]..sort((a, b) {
+        final at = a.time, bt = b.time;
+        if (at == null && bt == null) return 0;
+        if (at == null) return 1;
+        if (bt == null) return -1;
+        return bt.compareTo(at); // newest first
+      });
+    final recentAlerts = safetyAlerts.take(5).toList();
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -117,6 +163,10 @@ class _ElderMonitoringScreenState
                     _elderVitalsStreamProvider(widget.elderId));
                 ref.invalidate(
                     _elderAlertsStreamProvider(widget.elderId));
+                ref.invalidate(
+                    _sensorReadingsStreamProvider(widget.patientCode));
+                ref.invalidate(
+                    _bandReadingStreamProvider(widget.patientCode));
               },
               child: ListView(
                 padding: const EdgeInsets.all(16),
@@ -187,14 +237,14 @@ class _ElderMonitoringScreenState
                     header: _SectionHeader(
                       title: l.safetyAlerts,
                       icon: Icons.notifications_active_rounded,
-                      color: alerts.isEmpty
+                      color: recentAlerts.isEmpty
                           ? AppTheme.healthGreen
                           : AppTheme.warning,
                       trailing: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: (alerts.isEmpty
+                          color: (recentAlerts.isEmpty
                                   ? AppTheme.healthGreen
                                   : AppTheme.warning)
                               .withValues(alpha: 0.1),
@@ -205,7 +255,7 @@ class _ElderMonitoringScreenState
                             width: 6,
                             height: 6,
                             decoration: BoxDecoration(
-                              color: alerts.isEmpty
+                              color: recentAlerts.isEmpty
                                   ? AppTheme.healthGreen
                                   : AppTheme.warning,
                               shape: BoxShape.circle,
@@ -213,29 +263,28 @@ class _ElderMonitoringScreenState
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            alerts.isEmpty ? l.allClear : '${alerts.length}',
+                            recentAlerts.isEmpty
+                                ? l.allClear
+                                : '${recentAlerts.length}',
                             style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: alerts.isEmpty
+                                color: recentAlerts.isEmpty
                                     ? AppTheme.healthGreen
                                     : AppTheme.warning),
                           ),
                         ]),
                       ),
                     ),
-                    child: alerts.isEmpty
+                    child: recentAlerts.isEmpty
                         ? _EmptySection(
                             icon: Icons.check_circle_outline,
                             text: l.noAlertsDetected,
                             color: AppTheme.healthGreen)
                         : Column(
-                            children: alerts
-                                .take(5)
+                            children: recentAlerts
                                 .map((a) => _AlertTile(
-                                    label: a.detectedObject ??
-                                        l.activityDetected,
-                                    time: a.alertTime))
+                                    label: a.label, time: a.time))
                                 .toList(),
                           ),
                   ),
@@ -248,7 +297,7 @@ class _ElderMonitoringScreenState
                       icon: Icons.favorite_rounded,
                       color: AppTheme.error,
                     ),
-                    child: latest == null
+                    child: (latest == null && band == null)
                         ? _EmptySection(
                             icon: Icons.monitor_heart_outlined,
                             text: l.noVitals,
@@ -258,12 +307,12 @@ class _ElderMonitoringScreenState
                               child: _VitalMini(
                                 icon: Icons.favorite,
                                 label: l.hrReading,
-                                value: latest.heartRate != null
-                                    ? '${latest.heartRate}'
+                                value: band?.heartRate != null
+                                    ? '${band!.heartRate}'
                                     : '--',
                                 unit: 'BPM',
                                 color: AppTheme.error,
-                                status: _hrStatus(latest.heartRate),
+                                status: _hrStatus(band?.heartRate),
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -271,110 +320,20 @@ class _ElderMonitoringScreenState
                               child: _VitalMini(
                                 icon: Icons.air,
                                 label: l.spO2,
-                                value: latest.oxygenSaturationPercent != null
-                                    ? '${latest.oxygenSaturationPercent!.toStringAsFixed(0)}%'
+                                value: band?.spo2 != null
+                                    ? '${band!.spo2}%'
                                     : '--',
                                 unit: '%',
                                 color: AppTheme.primary,
-                                status: _o2Status(
-                                    latest.oxygenSaturationPercent),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _VitalMini(
-                                icon: Icons.thermostat,
-                                label: l.temperatureLabel,
-                                value: latest.temperatureC != null
-                                    ? '${latest.temperatureC!.toStringAsFixed(1)} °C'
-                                    : '--',
-                                unit: '°C',
-                                color: AppTheme.warning,
-                                status: _tempStatus(latest.temperatureC),
+                                status: _o2Status(band?.spo2?.toDouble()),
                               ),
                             ),
                           ]),
                   ),
                   const SizedBox(height: 14),
 
-                  // ── Heart Rate Chart ──────────────────────────
-                  _SectionCard(
-                    header: _SectionHeader(
-                      title: l.heartRateTracking,
-                      icon: Icons.show_chart_rounded,
-                      color: AppTheme.elderAccent,
-                      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                        _ToggleBtn(
-                            label: l.h24,
-                            selected: _show24h,
-                            onTap: () => setState(() => _show24h = true)),
-                        const SizedBox(width: 6),
-                        _ToggleBtn(
-                            label: l.week,
-                            selected: !_show24h,
-                            onTap: () => setState(() => _show24h = false)),
-                      ]),
-                    ),
-                    child: vitals.isEmpty
-                        ? _EmptySection(
-                            icon: Icons.show_chart,
-                            text: l.noVitalsForChart,
-                            color: AppTheme.textSecondary)
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "${widget.elderName}'s ${l.hrReading} - ${_show24h ? l.h24 : l.week}",
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.textPrimary),
-                              ),
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                height: 180,
-                                child: _HrChart(
-                                    vitals: vitals, show24h: _show24h),
-                              ),
-                              const SizedBox(height: 8),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  '${l.liveTrendFor} ${widget.patientCode}',
-                                  style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.elderAccent
-                                          .withValues(alpha: 0.7),
-                                      letterSpacing: 1),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              // Legend
-                              Wrap(
-                                spacing: 10,
-                                runSpacing: 6,
-                                children: [
-                                  _LegendItem(
-                                      color: AppTheme.healthGreen,
-                                      label: l.restingRange),
-                                  _LegendItem(
-                                      color: AppTheme.warning,
-                                      label: l.normalRange),
-                                  _LegendItem(
-                                      color: const Color(0xFFFF7043),
-                                      label: l.elevatedRange),
-                                  _LegendItem(
-                                      color: AppTheme.error,
-                                      label: l.highRange),
-                                  _LegendItem(
-                                      color: const Color(0xFF4A0000),
-                                      label: l.peakRange),
-                                ],
-                              ),
-                            ],
-                          ),
-                  ),
+                  // ── Room Environment (shared room sensor) ─────
+                  _RoomEnvironmentCard(reading: latestSensor),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -397,137 +356,67 @@ class _ElderMonitoringScreenState
     if (o2 >= 90) return 'Low';
     return 'Critical';
   }
-
-  String _tempStatus(double? temp) {
-    if (temp == null) return '';
-    if (temp < 36.1) return 'Low';
-    if (temp <= 37.2) return 'Normal';
-    if (temp <= 38.0) return 'Elevated';
-    return 'High';
-  }
-}
-
-// ── Chart ────────────────────────────────────────────────────────────────────
-
-class _HrChart extends StatelessWidget {
-  final List<ElderVitalsModel> vitals;
-  final bool show24h;
-
-  const _HrChart({required this.vitals, required this.show24h});
-
-  Color _hrColor(double hr) {
-    if (hr <= 70) return AppTheme.healthGreen;
-    if (hr <= 100) return AppTheme.warning;
-    if (hr <= 130) return const Color(0xFFFF7043);
-    if (hr <= 160) return AppTheme.error;
-    return const Color(0xFF4A0000);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    final filtered = vitals
-        .where((v) => v.heartRate != null)
-        .toList()
-        .reversed
-        .toList();
-
-    if (filtered.isEmpty) {
-      return Center(
-          child: Text(l.noHeartRateData,
-              style: const TextStyle(color: AppTheme.textSecondary)));
-    }
-
-    final spots = filtered.asMap().entries.map((e) {
-      return FlSpot(e.key.toDouble(), e.value.heartRate!.toDouble());
-    }).toList();
-
-    final minY = (spots.map((s) => s.y).reduce((a, b) => a < b ? a : b) - 10)
-        .clamp(0, 300)
-        .toDouble();
-    final maxY = (spots.map((s) => s.y).reduce((a, b) => a > b ? a : b) + 10)
-        .clamp(0, 300)
-        .toDouble();
-
-    return LineChart(
-      LineChartData(
-        minY: minY,
-        maxY: maxY,
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          getDrawingHorizontalLine: (_) => const FlLine(
-            color: AppTheme.border,
-            strokeWidth: 0.8,
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        titlesData: FlTitlesData(
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 32,
-              getTitlesWidget: (v, _) => Text('${v.toInt()}',
-                  style: const TextStyle(
-                      fontSize: 9, color: AppTheme.textSecondary)),
-            ),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              interval: (spots.length / 4).ceilToDouble(),
-              getTitlesWidget: (v, _) {
-                final idx = v.toInt();
-                if (idx < 0 || idx >= filtered.length) {
-                  return const SizedBox.shrink();
-                }
-                final t = filtered[idx].measuredAt;
-                return Text(
-                    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
-                    style: const TextStyle(
-                        fontSize: 9, color: AppTheme.textSecondary));
-              },
-            ),
-          ),
-          rightTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        ),
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            color: AppTheme.elderAccent,
-            barWidth: 2,
-            dotData: FlDotData(
-              show: true,
-              getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
-                radius: 3,
-                color: _hrColor(spot.y),
-                strokeWidth: 1,
-                strokeColor: Colors.white,
-              ),
-            ),
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                colors: [
-                  AppTheme.elderAccent.withValues(alpha: 0.2),
-                  AppTheme.elderAccent.withValues(alpha: 0.0),
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ── Shared widgets ────────────────────────────────────────────────────────────
+
+/// A safety alert, sourced from either an `elder_alerts` row or the
+/// `alert_text` of a shared room sensor reading.
+class _SafetyAlert {
+  final String label;
+  final DateTime? time;
+  const _SafetyAlert({required this.label, this.time});
+}
+
+/// Room temperature & humidity from the shared `baby_sensor_readings` table.
+class _RoomEnvironmentCard extends StatelessWidget {
+  final BabySensorReading? reading;
+  const _RoomEnvironmentCard({required this.reading});
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      header: _SectionHeader(
+        title: 'Room Environment',
+        icon: Icons.sensors_rounded,
+        color: AppTheme.elderAccent,
+        trailing: reading?.measuredAt != null
+            ? Text(
+                timeago.format(reading!.measuredAt!),
+                style: const TextStyle(
+                    fontSize: 11, color: AppTheme.textSecondary),
+              )
+            : null,
+      ),
+      child: Row(children: [
+        Expanded(
+          child: _VitalMini(
+            icon: Icons.thermostat,
+            label: 'Room Temp',
+            value: reading?.roomTemperature != null
+                ? '${reading!.roomTemperature}°C'
+                : '--',
+            unit: '°C',
+            color: AppTheme.warning,
+            status: '',
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _VitalMini(
+            icon: Icons.water_drop,
+            label: 'Humidity',
+            value:
+                reading?.humidity != null ? '${reading!.humidity}%' : '--',
+            unit: '%',
+            color: AppTheme.primary,
+            status: '',
+          ),
+        ),
+      ]),
+    );
+  }
+}
 
 class _SectionCard extends StatelessWidget {
   final Widget header;
@@ -608,7 +497,7 @@ class _LiveBadge extends StatelessWidget {
 
 class _AlertTile extends StatelessWidget {
   final String label;
-  final DateTime time;
+  final DateTime? time;
 
   const _AlertTile({required this.label, required this.time});
 
@@ -644,9 +533,10 @@ class _AlertTile extends StatelessWidget {
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary)),
-              Text(timeago.format(time),
-                  style: const TextStyle(
-                      fontSize: 11, color: AppTheme.textSecondary)),
+              if (time != null)
+                Text(timeago.format(time!),
+                    style: const TextStyle(
+                        fontSize: 11, color: AppTheme.textSecondary)),
             ],
           ),
         ),
@@ -746,61 +636,6 @@ class _VitalMini extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _ToggleBtn extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _ToggleBtn(
-      {required this.label,
-      required this.selected,
-      required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppTheme.elderAccent
-              : AppTheme.elderAccent.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color:
-                    selected ? Colors.white : AppTheme.elderAccent)),
-      ),
-    );
-  }
-}
-
-class _LegendItem extends StatelessWidget {
-  final Color color;
-  final String label;
-
-  const _LegendItem({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-      const SizedBox(width: 4),
-      Text(label,
-          style:
-              const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
-    ]);
   }
 }
 

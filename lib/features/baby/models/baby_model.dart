@@ -185,6 +185,93 @@ class BabyRoutineModel {
   }
 }
 
+/// Latest environmental reading pushed by the room sensor into the
+/// `baby_sensor_readings` Supabase table. Rows are keyed by [patientCode]
+/// (e.g. "B-0001"); the most recent row by `created_at` is what we display.
+class BabySensorReading {
+  final String id;
+  final String patientCode;
+  final double? roomTemperature;
+  final double? humidity;
+  final double? gasLevel;
+  final double? smokeLevel;
+  final String? alertText;
+  final DateTime? measuredAt;
+  final DateTime? createdAt;
+
+  const BabySensorReading({
+    required this.id,
+    required this.patientCode,
+    this.roomTemperature,
+    this.humidity,
+    this.gasLevel,
+    this.smokeLevel,
+    this.alertText,
+    this.measuredAt,
+    this.createdAt,
+  });
+
+  factory BabySensorReading.fromJson(Map<String, dynamic> json) {
+    return BabySensorReading(
+      id: json['id'] as String,
+      patientCode: json['patient_code'] as String? ?? '',
+      roomTemperature: (json['room_temperature'] as num?)?.toDouble(),
+      humidity: (json['humidity'] as num?)?.toDouble(),
+      gasLevel: (json['gas_level'] as num?)?.toDouble(),
+      smokeLevel: (json['smoke_level'] as num?)?.toDouble(),
+      alertText: json['alert_text'] as String?,
+      measuredAt: json['measured_at'] != null
+          ? DateTime.tryParse(json['measured_at'] as String)
+          : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'] as String)
+          : null,
+    );
+  }
+}
+
+/// Latest wearable-band reading from the `band_readings` Supabase table.
+/// Rows are keyed by [patientCode] (e.g. "B-0001"); the most recent row by
+/// `created_at` drives the Daily Vitals card.
+class BandReading {
+  final String id;
+  final String patientCode;
+  final int? heartRate;
+  final int? spo2;
+  final String? alertText;
+  final String? locationLink;
+  final DateTime? measuredAt;
+  final DateTime? createdAt;
+
+  const BandReading({
+    required this.id,
+    required this.patientCode,
+    this.heartRate,
+    this.spo2,
+    this.alertText,
+    this.locationLink,
+    this.measuredAt,
+    this.createdAt,
+  });
+
+  factory BandReading.fromJson(Map<String, dynamic> json) {
+    return BandReading(
+      id: json['id'] as String,
+      patientCode: json['patient_code'] as String? ?? '',
+      heartRate: (json['heart_rate'] as num?)?.toInt(),
+      spo2: (json['spo2'] as num?)?.toInt(),
+      alertText: json['alert_text'] as String?,
+      locationLink: json['location_link'] as String?,
+      measuredAt: json['measured_at'] != null
+          ? DateTime.tryParse(json['measured_at'] as String)
+          : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'] as String)
+          : null,
+    );
+  }
+}
+
 class BabyAlertModel {
   final String id;
   final String babyId;

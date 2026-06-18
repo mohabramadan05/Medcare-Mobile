@@ -1,42 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/localization/app_localizations.dart';
-import '../../../shared/widgets/loading_widget.dart';
 import '../models/baby_model.dart';
 import '../services/baby_monitoring_service.dart';
 
-// ── URL provider ──────────────────────────────────────────────────────────────
-// Reads the `monitor_url` column from the `babies` table for this baby.
-// Returns null when no Pi has been linked yet.
-// This is the ONLY place Supabase is used in this screen — the actual
-// monitoring data comes from the Pi (or test server) at that URL.
-
-final _piUrlProvider =
-    FutureProvider.family<String?, String>((ref, babyId) async {
-  final data = await Supabase.instance.client
-      .from('babies')
-      .select('monitor_url')
-      .eq('id', babyId)
-      .maybeSingle(); // returns null instead of throwing when row not found
-  return data?['monitor_url'] as String?;
-});
-
 // ── Monitoring data providers ─────────────────────────────────────────────────
-// Family key is a Dart 3 record (babyId, url) — records have structural
-// equality so Riverpod correctly caches one provider per (baby, server) pair.
+// All monitoring data is sourced from Supabase, keyed by patient code
+// (e.g. "B-0001"). Each provider polls once a minute for the newest record.
 
-final _babyAlertsStreamProvider = StreamProvider.family<List<BabyAlertModel>,
-    ({String babyId, String url})>((ref, key) {
-  return BabyMonitoringService.alertsStream(key.babyId, key.url);
+// Latest room sensor reading from the `baby_sensor_readings` Supabase table.
+// Keyed by patient code (e.g. "B-0001"); polls once a minute for a new record.
+final _sensorReadingStreamProvider =
+    StreamProvider.family<BabySensorReading?, String>((ref, patientCode) {
+  return BabyMonitoringService.sensorReadingStream(patientCode);
 });
 
-final _babyVitalsStreamProvider =
-    StreamProvider.family<BabyVitals, ({String babyId, String url})>(
-        (ref, key) {
-  return BabyMonitoringService.vitalsStream(key.babyId, key.url);
+// Latest wearable-band reading from the `band_readings` Supabase table.
+// Keyed by patient code; polls once a minute. Drives the Daily Vitals card.
+final _bandReadingStreamProvider =
+    StreamProvider.family<BandReading?, String>((ref, patientCode) {
+  return BabyMonitoringService.bandReadingStream(patientCode);
+});
+
+// Most recent room sensor readings (newest first). Keyed by patient code;
+// polls once a minute. Feeds the Safety Alerts list.
+final _recentSensorReadingsProvider =
+    StreamProvider.family<List<BabySensorReading>, String>((ref, patientCode) {
+  return BabyMonitoringService.recentSensorReadingsStream(patientCode);
+});
+
+// Most recent wearable-band readings (newest first). Keyed by patient code;
+// polls once a minute. Feeds the Safety Alerts list.
+final _recentBandReadingsProvider =
+    StreamProvider.family<List<BandReading>, String>((ref, patientCode) {
+  return BabyMonitoringService.recentBandReadingsStream(patientCode);
 });
 
 // ── Screen ───────────────────────────────────────────────────────────────────
@@ -56,7 +55,6 @@ class BabyMonitoringScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
-    final piUrlAsync = ref.watch(_piUrlProvider(babyId));
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -72,443 +70,291 @@ class BabyMonitoringScreen extends ConsumerWidget {
                     fontSize: 11, color: AppTheme.textSecondary)),
           ],
         ),
-        // The badge is only meaningful once we know the URL; hide it while loading.
-        actions: [
-          if (piUrlAsync.hasValue && piUrlAsync.value != null)
-            _StatusBadge(
-              // Pass the live connected state down from the dashboard child.
-              // We use a ValueNotifier so the AppBar updates without rebuilding
-              // the whole scaffold.
-              connectedNotifier: _connectedNotifier,
-              l: l,
-            ),
-        ],
       ),
-      body: piUrlAsync.when(
-        // Still fetching the URL from Supabase
-        loading: () => const LoadingWidget(),
-
-        // Supabase query failed
-        error: (e, _) => _ErrorPanel(
-          message: 'Could not load Pi configuration.\n$e',
-          onRetry: () => ref.invalidate(_piUrlProvider(babyId)),
-        ),
-
-        data: (url) {
-          // No Pi has been linked to this baby yet
-          if (url == null) {
-            return _NotLinkedPanel(patientCode: patientCode);
-          }
-          // Pi URL is available — show the live dashboard
-          return _MonitoringDashboard(
-            babyId: babyId,
-            babyName: babyName,
-            serverUrl: url,
-            onConnectedChanged: (v) => _connectedNotifier.value = v,
-            onRefresh: () {
-              ref.invalidate(_babyAlertsStreamProvider(
-                  (babyId: babyId, url: url)));
-              ref.invalidate(_babyVitalsStreamProvider(
-                  (babyId: babyId, url: url)));
-            },
-          );
-        },
+      body: _MonitoringDashboard(
+        babyName: babyName,
+        patientCode: patientCode,
       ),
     );
   }
-
-  // Shared notifier so AppBar badge updates reactively without a StatefulWidget
-  static final _connectedNotifier = ValueNotifier<bool>(false);
 }
 
-// ── Dashboard (shown when Pi URL is available) ────────────────────────────────
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+// All data comes from Supabase, keyed by patient code.
 
 class _MonitoringDashboard extends ConsumerWidget {
-  final String babyId;
   final String babyName;
-  final String serverUrl;
-  final ValueChanged<bool> onConnectedChanged;
-  final VoidCallback onRefresh;
+  final String patientCode;
 
   const _MonitoringDashboard({
-    required this.babyId,
     required this.babyName,
-    required this.serverUrl,
-    required this.onConnectedChanged,
-    required this.onRefresh,
+    required this.patientCode,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
-    final key = (babyId: babyId, url: serverUrl);
 
-    final alertsAsync = ref.watch(_babyAlertsStreamProvider(key));
-    final vitalsAsync = ref.watch(_babyVitalsStreamProvider(key));
+    final sensorAsync = ref.watch(_sensorReadingStreamProvider(patientCode));
+    final reading = sensorAsync.whenOrNull(data: (r) => r);
+    final bandAsync = ref.watch(_bandReadingStreamProvider(patientCode));
+    final band = bandAsync.whenOrNull(data: (b) => b);
 
-    final alerts =
-        alertsAsync.whenOrNull(data: (d) => d) ?? <BabyAlertModel>[];
-    final vitals = vitalsAsync.whenOrNull(data: (v) => v);
-    final connected = alertsAsync.hasValue && !alertsAsync.hasError;
+    // Safety alerts are derived from the `alert_text` of the most recent
+    // Supabase readings (band + room sensor), combined and sorted newest
+    // first, capped at the last 5.
+    final recentBands =
+        ref.watch(_recentBandReadingsProvider(patientCode)).whenOrNull(
+                  data: (b) => b,
+                ) ??
+            const <BandReading>[];
+    final recentSensors =
+        ref.watch(_recentSensorReadingsProvider(patientCode)).whenOrNull(
+                  data: (s) => s,
+                ) ??
+            const <BabySensorReading>[];
 
-    // Propagate connection state up to the AppBar badge
-    WidgetsBinding.instance.addPostFrameCallback(
-        (_) => onConnectedChanged(connected));
+    final alerts = <_SafetyAlert>[
+      for (final b in recentBands)
+        if (b.alertText != null && b.alertText!.trim().isNotEmpty)
+          _SafetyAlert(text: b.alertText!.trim(), time: b.measuredAt),
+      for (final s in recentSensors)
+        if (s.alertText != null && s.alertText!.trim().isNotEmpty)
+          _SafetyAlert(text: s.alertText!.trim(), time: s.measuredAt),
+    ]..sort((a, b) {
+        final at = a.time, bt = b.time;
+        if (at == null && bt == null) return 0;
+        if (at == null) return 1;
+        if (bt == null) return -1;
+        return bt.compareTo(at); // newest first
+      });
+    final recentAlerts = alerts.take(5).toList();
 
-    return alertsAsync.isLoading && !alertsAsync.hasValue
-        ? const LoadingWidget()
-        : RefreshIndicator(
-            onRefresh: () async => onRefresh(),
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                if (alertsAsync.hasError)
-                  _OfflineBanner(serverUrl: serverUrl),
-
-                // ── Live Feed ─────────────────────────────────
-                _SectionCard(
-                  color: AppTheme.babyAccent,
-                  header: _SectionHeader(
-                    title: l.liveFeed,
-                    icon: Icons.videocam_rounded,
-                    color: AppTheme.babyAccent,
-                    trailing: const _LiveBadge(),
-                  ),
-                  child: Column(children: [
-                    Container(
-                      height: 160,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFAD1457), AppTheme.babyAccent],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.child_care,
-                                color: Colors.white.withValues(alpha: 0.7),
-                                size: 40),
-                            const SizedBox(height: 8),
-                            Text(l.babyCameraFeed,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15)),
-                            const SizedBox(height: 4),
-                            Text("$babyName's Room",
-                                style: TextStyle(
-                                    color:
-                                        Colors.white.withValues(alpha: 0.7),
-                                    fontSize: 12)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.fullscreen, size: 16),
-                        label: Text(l.fullScreen),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.babyAccent,
-                          side: BorderSide(
-                              color:
-                                  AppTheme.babyAccent.withValues(alpha: 0.4)),
-                        ),
-                      ),
-                    ),
-                  ]),
-                ),
-                const SizedBox(height: 14),
-
-                // ── Safety Alerts ─────────────────────────────
-                _SectionCard(
-                  color: AppTheme.babyAccent,
-                  header: _SectionHeader(
-                    title: l.safetyAlerts,
-                    icon: Icons.notifications_active_rounded,
-                    color:
-                        alerts.isEmpty ? AppTheme.healthGreen : AppTheme.warning,
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: (alerts.isEmpty
-                                ? AppTheme.healthGreen
-                                : AppTheme.warning)
-                            .withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: alerts.isEmpty
-                                ? AppTheme.healthGreen
-                                : AppTheme.warning,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          alerts.isEmpty ? l.allClear : '${alerts.length}',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: alerts.isEmpty
-                                  ? AppTheme.healthGreen
-                                  : AppTheme.warning),
-                        ),
-                      ]),
-                    ),
-                  ),
-                  child: alerts.isEmpty
-                      ? _EmptySection(
-                          icon: Icons.check_circle_outline,
-                          text: l.noAlertsDetected,
-                          color: AppTheme.healthGreen)
-                      : Column(
-                          children: alerts
-                              .take(5)
-                              .map((a) => _AlertTile(
-                                  label: a.detectedObject ?? l.activityDetected,
-                                  time: a.alertTime,
-                                  color: AppTheme.babyAccent))
-                              .toList(),
-                        ),
-                ),
-                const SizedBox(height: 14),
-
-                // ── Baby Vitals ───────────────────────────────
-                _SectionCard(
-                  color: AppTheme.babyAccent,
-                  header: _SectionHeader(
-                    title: l.dailyVitals,
-                    icon: Icons.favorite_rounded,
-                    color: AppTheme.babyAccent,
-                  ),
-                  child: Column(children: [
-                    Row(children: [
-                      Expanded(
-                        child: _VitalMini(
-                          icon: Icons.favorite,
-                          label: l.hrReading,
-                          value: vitals != null ? '${vitals.heartRate}' : '--',
-                          color: AppTheme.error,
-                          status: '',
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _VitalMini(
-                          icon: Icons.thermostat,
-                          label: l.temperatureLabel,
-                          value: vitals != null
-                              ? '${vitals.temperature}°'
-                              : '--',
-                          color: AppTheme.warning,
-                          status: '',
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _VitalMini(
-                          icon: Icons.air,
-                          label: l.spO2,
-                          value:
-                              vitals != null ? '${vitals.spo2}%' : '--',
-                          color: AppTheme.primary,
-                          status: '',
-                        ),
-                      ),
-                    ]),
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppTheme.babyAccent.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: AppTheme.babyAccent.withValues(alpha: 0.2)),
-                      ),
-                      child: Row(children: [
-                        Icon(Icons.info_outline,
-                            size: 14,
-                            color: AppTheme.babyAccent.withValues(alpha: 0.7)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            l.connectBabyMonitor,
-                            style: const TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.textSecondary),
-                          ),
-                        ),
-                      ]),
-                    ),
-                  ]),
-                ),
-                const SizedBox(height: 24),
-              ],
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(_sensorReadingStreamProvider(patientCode));
+        ref.invalidate(_bandReadingStreamProvider(patientCode));
+        ref.invalidate(_recentSensorReadingsProvider(patientCode));
+        ref.invalidate(_recentBandReadingsProvider(patientCode));
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // ── Live Feed ─────────────────────────────────
+          _SectionCard(
+            color: AppTheme.babyAccent,
+            header: _SectionHeader(
+              title: l.liveFeed,
+              icon: Icons.videocam_rounded,
+              color: AppTheme.babyAccent,
+              trailing: const _LiveBadge(),
             ),
-          );
+            child: Column(children: [
+              Container(
+                height: 160,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFAD1457), AppTheme.babyAccent],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.child_care,
+                          color: Colors.white.withValues(alpha: 0.7), size: 40),
+                      const SizedBox(height: 8),
+                      Text(l.babyCameraFeed,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15)),
+                      const SizedBox(height: 4),
+                      Text("$babyName's Room",
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.7),
+                              fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.fullscreen, size: 16),
+                  label: Text(l.fullScreen),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.babyAccent,
+                    side: BorderSide(
+                        color: AppTheme.babyAccent.withValues(alpha: 0.4)),
+                  ),
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 14),
+
+          // ── Room Environment (Supabase sensor readings) ─
+          _SectionCard(
+            color: AppTheme.babyAccent,
+            header: _SectionHeader(
+              title: 'Room Environment',
+              icon: Icons.sensors_rounded,
+              color: AppTheme.babyAccent,
+              trailing: reading?.measuredAt != null
+                  ? Text(
+                      timeago.format(reading!.measuredAt!),
+                      style: const TextStyle(
+                          fontSize: 11, color: AppTheme.textSecondary),
+                    )
+                  : null,
+            ),
+            child: Column(children: [
+              Row(children: [
+                Expanded(
+                  child: _VitalMini(
+                    icon: Icons.thermostat,
+                    label: 'Room Temp',
+                    value: reading?.roomTemperature != null
+                        ? '${reading!.roomTemperature}°C'
+                        : '--',
+                    color: AppTheme.warning,
+                    status: '',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _VitalMini(
+                    icon: Icons.water_drop,
+                    label: 'Humidity',
+                    value: reading?.humidity != null
+                        ? '${reading!.humidity}%'
+                        : '--',
+                    color: AppTheme.primary,
+                    status: '',
+                  ),
+                ),
+              ]),
+            ]),
+          ),
+          const SizedBox(height: 14),
+
+          // ── Safety Alerts ─────────────────────────────
+          _SectionCard(
+            color: AppTheme.babyAccent,
+            header: _SectionHeader(
+              title: l.safetyAlerts,
+              icon: Icons.notifications_active_rounded,
+              color:
+                  recentAlerts.isEmpty ? AppTheme.healthGreen : AppTheme.warning,
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: (recentAlerts.isEmpty
+                          ? AppTheme.healthGreen
+                          : AppTheme.warning)
+                      .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: recentAlerts.isEmpty
+                          ? AppTheme.healthGreen
+                          : AppTheme.warning,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    recentAlerts.isEmpty ? l.allClear : '${recentAlerts.length}',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: recentAlerts.isEmpty
+                            ? AppTheme.healthGreen
+                            : AppTheme.warning),
+                  ),
+                ]),
+              ),
+            ),
+            child: recentAlerts.isEmpty
+                ? _EmptySection(
+                    icon: Icons.check_circle_outline,
+                    text: l.noAlertsDetected,
+                    color: AppTheme.healthGreen)
+                : Column(
+                    children: recentAlerts
+                        .map((a) => _AlertTile(
+                            label: a.text,
+                            time: a.time,
+                            color: AppTheme.babyAccent))
+                        .toList(),
+                  ),
+          ),
+          const SizedBox(height: 14),
+
+          // ── Baby Vitals ───────────────────────────────
+          _SectionCard(
+            color: AppTheme.babyAccent,
+            header: _SectionHeader(
+              title: l.dailyVitals,
+              icon: Icons.favorite_rounded,
+              color: AppTheme.babyAccent,
+              trailing: band?.measuredAt != null
+                  ? Text(
+                      timeago.format(band!.measuredAt!),
+                      style: const TextStyle(
+                          fontSize: 11, color: AppTheme.textSecondary),
+                    )
+                  : null,
+            ),
+            child: Column(children: [
+              Row(children: [
+                Expanded(
+                  child: _VitalMini(
+                    icon: Icons.favorite,
+                    label: l.hrReading,
+                    value:
+                        band?.heartRate != null ? '${band!.heartRate}' : '--',
+                    color: AppTheme.error,
+                    status: '',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _VitalMini(
+                    icon: Icons.air,
+                    label: l.spO2,
+                    value: band?.spo2 != null ? '${band!.spo2}%' : '--',
+                    color: AppTheme.primary,
+                    status: '',
+                  ),
+                ),
+              ]),
+            ]),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
   }
 }
 
 // ── Shared widgets ────────────────────────────────────────────────────────────
 
-/// Listens to a ValueNotifier so only the badge re-renders on connection change.
-class _StatusBadge extends StatelessWidget {
-  final ValueNotifier<bool> connectedNotifier;
-  final AppLocalizations l;
-
-  const _StatusBadge(
-      {required this.connectedNotifier, required this.l});
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: connectedNotifier,
-      builder: (_, connected, __) {
-        final color = connected ? AppTheme.healthGreen : AppTheme.error;
-        final label = connected ? l.live : 'OFFLINE';
-        return Container(
-          margin: const EdgeInsets.only(right: 12),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-                width: 7,
-                height: 7,
-                decoration:
-                    BoxDecoration(color: color, shape: BoxShape.circle)),
-            const SizedBox(width: 5),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 11,
-                    color: color,
-                    fontWeight: FontWeight.w600)),
-          ]),
-        );
-      },
-    );
-  }
-}
-
-/// Full-screen panel shown when monitor_url is null in Supabase.
-class _NotLinkedPanel extends StatelessWidget {
-  final String patientCode;
-  const _NotLinkedPanel({required this.patientCode});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(36),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.sensors_off_rounded,
-                size: 80,
-                color: AppTheme.textSecondary.withValues(alpha: 0.4)),
-            const SizedBox(height: 20),
-            Text(
-              'No Pi linked to $patientCode',
-              style: const TextStyle(
-                  fontSize: 17, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Set the monitor_url column in Supabase\n'
-              '(babies table -> row for this baby)\n'
-              'to the Pi\'s ngrok URL.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 13,
-                  color: AppTheme.textSecondary,
-                  height: 1.6),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Thin warning strip when the Pi is unreachable.
-class _OfflineBanner extends StatelessWidget {
-  final String serverUrl;
-  const _OfflineBanner({required this.serverUrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppTheme.error.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.error.withValues(alpha: 0.25)),
-      ),
-      child: Row(children: [
-        Icon(Icons.cloud_off,
-            size: 16, color: AppTheme.error.withValues(alpha: 0.8)),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            'Cannot reach Pi ($serverUrl). '
-            'Check that server.py is running and ngrok is active.',
-            style: TextStyle(
-                fontSize: 11, color: AppTheme.error.withValues(alpha: 0.8)),
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-/// Full-screen error panel (used for Supabase URL fetch failures).
-class _ErrorPanel extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-  const _ErrorPanel({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(36),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 72, color: AppTheme.error),
-            const SizedBox(height: 16),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, height: 1.5)),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+/// A safety alert derived from a Supabase reading's `alert_text`.
+class _SafetyAlert {
+  final String text;
+  final DateTime? time;
+  const _SafetyAlert({required this.text, this.time});
 }
 
 class _SectionCard extends StatelessWidget {
@@ -526,8 +372,7 @@ class _SectionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: AppTheme.cardShadow,
       ),
-      child:
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 0), child: header),
         const SizedBox(height: 2),
@@ -587,7 +432,7 @@ class _LiveBadge extends StatelessWidget {
 
 class _AlertTile extends StatelessWidget {
   final String label;
-  final DateTime time;
+  final DateTime? time;
   final Color color;
   const _AlertTile(
       {required this.label, required this.time, required this.color});
@@ -614,15 +459,17 @@ class _AlertTile extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(label,
                 style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary)),
-            Text(timeago.format(time),
-                style: const TextStyle(
-                    fontSize: 11, color: AppTheme.textSecondary)),
+            if (time != null)
+              Text(timeago.format(time!),
+                  style: const TextStyle(
+                      fontSize: 11, color: AppTheme.textSecondary)),
           ]),
         ),
       ]),
@@ -661,8 +508,7 @@ class _VitalMini extends StatelessWidget {
             textAlign: TextAlign.center),
         const SizedBox(height: 2),
         Text(label,
-            style:
-                const TextStyle(fontSize: 9, color: AppTheme.textSecondary),
+            style: const TextStyle(fontSize: 9, color: AppTheme.textSecondary),
             textAlign: TextAlign.center),
       ]),
     );
@@ -684,8 +530,8 @@ class _EmptySection extends StatelessWidget {
         Icon(icon, color: color.withValues(alpha: 0.5), size: 18),
         const SizedBox(width: 8),
         Text(text,
-            style: TextStyle(
-                fontSize: 12, color: color.withValues(alpha: 0.7))),
+            style:
+                TextStyle(fontSize: 12, color: color.withValues(alpha: 0.7))),
       ]),
     );
   }
