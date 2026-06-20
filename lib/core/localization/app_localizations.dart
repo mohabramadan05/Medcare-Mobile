@@ -323,6 +323,9 @@ class AppLocalizations {
   String get babyCameraFeed => _t('Baby Camera Feed', 'كاميرا الطفل');
   String get livingRoom => _t('Living Room', 'غرفة المعيشة');
   String get noAlertsDetected => _t('No alerts detected', 'لم يتم اكتشاف تنبيهات');
+  String get location => _t('Location', 'الموقع');
+  String get openInGoogleMaps => _t('Open in Google Maps', 'افتح في خرائط جوجل');
+  String get noLocationAvailable => _t('No location available', 'لا يوجد موقع متاح');
   String get connectBabyMonitor => _t('Connect a baby monitor device to see live vitals', 'اربط جهاز مراقبة الطفل لرؤية العلامات المباشرة');
   String get hrReading => _t('Heart Rate', 'معدل القلب');
   String get spO2 => _t('SpO2', 'تشبع O2');

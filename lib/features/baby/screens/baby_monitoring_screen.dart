@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../models/baby_model.dart';
@@ -341,6 +342,14 @@ class _MonitoringDashboard extends ConsumerWidget {
               ]),
             ]),
           ),
+          const SizedBox(height: 14),
+
+          // ── Location ──────────────────────────────────
+          _LocationCard(
+            url: band?.locationLink,
+            time: band?.measuredAt,
+            accent: AppTheme.babyAccent,
+          ),
           const SizedBox(height: 24),
         ],
       ),
@@ -355,6 +364,68 @@ class _SafetyAlert {
   final String text;
   final DateTime? time;
   const _SafetyAlert({required this.text, this.time});
+}
+
+/// Shows the last known location (a Google Maps URL stored in the band
+/// reading's `location_link`) and opens it in Google Maps when tapped.
+class _LocationCard extends StatelessWidget {
+  final String? url;
+  final DateTime? time;
+  final Color accent;
+  const _LocationCard({required this.url, required this.time, required this.accent});
+
+  Future<void> _open(BuildContext context) async {
+    final raw = url?.trim();
+    if (raw == null || raw.isEmpty) return;
+    final uri = Uri.tryParse(raw);
+    final ok = uri != null &&
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open location')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final hasLocation = url != null && url!.trim().isNotEmpty;
+    return _SectionCard(
+      color: accent,
+      header: _SectionHeader(
+        title: l.location,
+        icon: Icons.location_on_rounded,
+        color: accent,
+        trailing: time != null
+            ? Text(
+                timeago.format(time!),
+                style: const TextStyle(
+                    fontSize: 11, color: AppTheme.textSecondary),
+              )
+            : null,
+      ),
+      child: hasLocation
+          ? SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _open(context),
+                icon: const Icon(Icons.map_rounded, size: 18),
+                label: Text(l.openInGoogleMaps),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            )
+          : _EmptySection(
+              icon: Icons.location_off_outlined,
+              text: l.noLocationAvailable,
+              color: AppTheme.textSecondary,
+            ),
+    );
+  }
 }
 
 class _SectionCard extends StatelessWidget {
